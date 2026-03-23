@@ -803,14 +803,22 @@ class CosmicApp {
   _focusPlanet(p, wrapEl) {
     if (this.tourActive) this._stopTour();
 
-    /* Get current planet screen position from transform */
+    /* Use live orbit math position when available (more robust than parsing transform text) */
+    const livePos = this._currentPositions && this._currentPositions.find(pos => pos.id === p.id);
     const style = wrapEl.style.transform;
     const match = style.match(/translate\(calc\(-50% \+ ([-\d.]+)px\), calc\(-50% \+ ([-\d.]+)px\)\)/);
-    const wx = match ? parseFloat(match[1]) : 0;
-    const wy = match ? parseFloat(match[2]) : 0;
+    const wx = livePos ? livePos.x : (match ? parseFloat(match[1]) : 0);
+    const wy = livePos ? livePos.y : (match ? parseFloat(match[2]) : 0);
+
+    /* Planet view: adaptive zoom + panel-aware framing */
+    const targetScale = Math.max(1.55, Math.min(2.35, 90 / Math.max(24, p.size)));
+    const hasSidePanel = window.innerWidth >= 980;
+    const panelOffsetPx = hasSidePanel ? Math.min(180, window.innerWidth * 0.16) : 0;
+    const focusX = wx + (panelOffsetPx / targetScale);
+    const focusY = wy;
 
     this._warpEffect();
-    this.vp.zoomTo(wx, wy, 1.6);
+    this.vp.zoomTo(focusX, focusY, targetScale);
 
     /* Panel */
     this.activePlanetId = p.id;
