@@ -21,6 +21,7 @@ export class ViewportEngine {
     /* Pan inertia */
     this.vx = 0; this.vy = 0;
     this.FRICTION = 0.88;
+    this.ZOOM_WHEEL_SENSITIVITY = 0.0016;
 
     /* RAF handle */
     this._raf = null;
@@ -56,6 +57,10 @@ export class ViewportEngine {
     this.targetScale = 0.55;
     this.vx = 0; this.vy = 0;
     if (this.onZoomChange) this.onZoomChange(this.targetScale);
+  }
+
+  zoomBy(factor, cx = this.viewport.offsetWidth * 0.5, cy = this.viewport.offsetHeight * 0.5) {
+    this._zoomAround(cx, cy, factor);
   }
 
   getScale() { return this.scale; }
@@ -184,7 +189,8 @@ export class ViewportEngine {
 
   _onWheel(e) {
     e.preventDefault();
-    const delta = e.deltaY < 0 ? 1.12 : 0.89;
+    const wheelPx = this._wheelDeltaPx(e);
+    const delta = Math.exp(-wheelPx * this.ZOOM_WHEEL_SENSITIVITY);
     const rect  = this.viewport.getBoundingClientRect();
     const cx    = e.clientX - rect.left;
     const cy    = e.clientY - rect.top;
@@ -217,10 +223,11 @@ export class ViewportEngine {
     } else if (e.touches.length === 2) {
       e.preventDefault();
       const dist  = this._getTouchDist(e.touches);
-      const ratio = dist / this._pinchDist;
+      const ratio = Math.max(0.92, Math.min(1.08, dist / this._pinchDist));
       this._pinchDist = dist;
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const rect = this.viewport.getBoundingClientRect();
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
       this._zoomAround(cx, cy, ratio);
     }
   }
@@ -232,10 +239,8 @@ export class ViewportEngine {
   /* ── HELPERS ────────────────────────────────────── */
 
   _zoomAround(cx, cy, factor) {
-    const vW = this.viewport.offsetWidth;
-    const vH = this.viewport.offsetHeight;
     const newScale  = this._clampScale(this.targetScale * factor);
-    const scaleRatio = newScale / this.targetScale;
+    const scaleRatio = newScale / Math.max(0.0001, this.targetScale);
     /* Zoom toward cursor point */
     this.targetX = cx - (cx - this.targetX) * scaleRatio;
     this.targetY = cy - (cy - this.targetY) * scaleRatio;
@@ -251,5 +256,11 @@ export class ViewportEngine {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.hypot(dx, dy);
+  }
+
+  _wheelDeltaPx(e) {
+    if (e.deltaMode === 1) return e.deltaY * 16;
+    if (e.deltaMode === 2) return e.deltaY * this.viewport.clientHeight;
+    return e.deltaY;
   }
 }
