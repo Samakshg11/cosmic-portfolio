@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Cosmic Portfolio — An interactive space exploration portfolio">
+  <title>Cosmic Portfolio Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+
+<!-- ═══ INTRO ════════════════════════════════════════════════════ -->
+<div id="intro">
+  <div id="intro-stars-canvas"></div>
+  <h1>Cosmic Portfolio</h1>
+  <p>An interactive solar system of work, skills, and stories.<br>
+     Navigate the cosmos to explore each world.</p>
+  <button id="intro-btn">Begin Exploration</button>
+  <span id="intro-hint">scroll · drag · click planets</span>
+</div>
+
+<!-- ═══ STARFIELD (CANVAS) ═══════════════════════════════════════ -->
+<canvas id="starfield"></canvas>
+
+<!-- ═══ VIEWPORT ════════════════════════════════════════════════ -->
+<div id="viewport">
+  <div id="world">
+    <!-- Orbit rings and planets are injected by JS -->
+  </div>
+</div>
+
+<!-- ═══ HUD ═════════════════════════════════════════════════════ -->
+<div id="hud">
+  <span id="hud-title">COSMIC PORTFOLIO</span>
+  <div class="hud-sep"></div>
+  <span id="zoom-readout">55%</span>
+</div>
+
+<!-- ═══ BOTTOM TOOLBAR ═══════════════════════════════════════════ -->
+<div id="toolbar">
+  <button class="tb-btn" id="btn-zoom-in"  title="Zoom In">+</button>
+  <button class="tb-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-reset"    title="Reset View">⌂</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-tour"     title="Auto Tour">▶</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-speed"    title="Orbit Speed">⚡</button>
+</div>
+
+<!-- ═══ MINIMAP ══════════════════════════════════════════════════ -->
+<div id="minimap"></div>
+
+<!-- ═══ QUICK NAV ════════════════════════════════════════════════ -->
+<nav id="quicknav" aria-label="Quick Navigation"></nav>
+
+<!-- ═══ CONTENT PANEL ════════════════════════════════════════════ -->
+<div id="content-panel" role="dialog" aria-modal="true">
+  <div id="panel-header">
+    <div id="panel-dot"></div>
+    <div>
+      <div id="panel-title"></div>
+      <div id="panel-subtitle"></div>
+    </div>
+    <button id="panel-close" aria-label="Close panel">✕</button>
+  </div>
+  <div id="panel-body"></div>
+</div>
+
+<!-- ═══ TOOLTIP ══════════════════════════════════════════════════ -->
+<div id="tooltip" role="tooltip"></div>
+
+<!-- ═══ WARP OVERLAY ═════════════════════════════════════════════ -->
+<div id="warp-overlay"></div>
+
+<!-- ═══ SCRIPTS ══════════════════════════════════════════════════ -->
+<script type="module">
+
+/* ── Inline engine modules (avoids module bundler requirement) ── */
+
+/* ════════════════ STARFIELD ════════════════ */
+class Starfield {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx    = canvas.getContext('2d', { alpha: false });
+    const mob = window.innerWidth < 700;
+    this.STATIC_COUNT  = mob ? 220 : 420;
+    this.TWINKLE_COUNT = mob ? 16  : 32;
+    this.LAYER_COUNTS  = mob ? [36, 26, 16] : [88, 58, 34];
+    this.offscreen = document.createElement('canvas');
+    this.offCtx    = this.offscreen.getContext('2d', { alpha: false });
+    this._shooters = [];
+    this._nextShooterAt = 0;
+    this._prevTs = 0;
+    this._running  = false;
+    this._raf      = null;
+    this._init();
+  }
+  _init() {
+    this._resize(); this._buildStars(); this._renderOffscreen(); this._startLoop();
+    window.addEventListener('resize', () => {
+      this._resize(); this._buildStars(); this._renderOffscreen();
+    }, { passive: true });
+  }
+  _resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.dpr = dpr; this.w = window.innerWidth; this.h = window.innerHeight;
+    [this.canvas, this.offscreen].forEach(c => {
+      c.width  = this.w * dpr; c.height = this.h * dpr;
+      c.style.width = this.w + 'px'; c.style.height = this.h + 'px';
+    });
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.offCtx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  _buildStars() {
+    const { w, h } = this;
+    this.staticBuf = new Float32Array(this.STATIC_COUNT * 4);
+    for (let i = 0; i < this.STATIC_COUNT; i++) {
+      const b = i * 4;
+      this.staticBuf[b]   = Math.random() * w;
+      this.staticBuf[b+1] = Math.random() * h;
+      this.staticBuf[b+2] = Math.random() * 1.2 + 0.2;
+      this.staticBuf[b+3] = Math.random() * 0.6 + 0.2;
+    }
+    this.twinklers = Array.from({ length: this.TWINKLE_COUNT }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      r: Math.random() * 1.5 + 0.5,
+      phase: Math.random() * Math.PI * 2,
+      speed: (Math.random() * 0.6 + 0.3) * 0.01,
+    }));
+    this.layers = this.LAYER_COUNTS.map((count, li) => {
+      const depth = li + 1;
+      const speed = depth * 2.4;
+      return Array.from({ length: count }, () => {
+        const isWarm = Math.random() < 0.18;
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * (0.45 + depth * 0.28) + 0.25,
+          a: Math.random() * 0.6 + 0.25,
+          driftX: (Math.random() * 0.7 + 0.35) * speed,
+          driftY: (Math.random() * 0.4 - 0.2) * speed,
+          twinkle: Math.random() * Math.PI * 2,
+          twinkleSpeed: Math.random() * 1.2 + 0.5,
+          color: isWarm ? [255, 235, 200] : [208, 225, 255],
+        };
+      });
+    });
+    this._shooters.length = 0;
+    this._nextShooterAt = performance.now() + (Math.random() * 3500 + 2000);
+    this._prevTs = 0;
+  }
+  _renderOffscreen() {
+    const ctx = this.offCtx; const { w, h } = this;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#03040b'; ctx.fillRect(0, 0, w, h);
+    [
+      [w*0.15, h*0.25, w*0.26, 'rgba(52,40,125,0.22)'],
+      [w*0.82, h*0.65, w*0.20, 'rgba(22,90,132,0.16)'],
+      [w*0.55, h*0.80, w*0.28, 'rgba(95,26,118,0.13)'],
+      [w*0.36, h*0.56, w*0.23, 'rgba(35,52,140,0.10)'],
+    ].forEach(([bx, by, br, bc]) => {
+      const g = ctx.createRadialGradient(bx,by,0,bx,by,br);
+      g.addColorStop(0, bc); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    });
+    const buf = this.staticBuf;
+    for (let i = 0; i < this.STATIC_COUNT; i++) {
+      const b = i * 4;
+      ctx.beginPath();
+      ctx.arc(buf[b], buf[b+1], buf[b+2], 0, 6.2832);
+      ctx.fillStyle = `rgba(220,230,255,${buf[b+3].toFixed(2)})`;
+      ctx.fill();
+    }
+  }
+  _spawnShooter(now) {
+    const y = Math.random() * this.h * 0.55;
+    const x = Math.random() * this.w * 0.55;
+    this._shooters.push({
+      x, y,
+      vx: Math.random() * 520 + 760,
+      vy: Math.random() * 130 + 180,
+      life: 0,
+      ttl: Math.random() * 0.55 + 0.45,
+      len: Math.random() * 70 + 55,
+    });
+    this._nextShooterAt = now + (Math.random() * 4500 + 2800);
+  }
+  _startLoop() {
+    this._running = true;
+    const tick = (ts) => {
+      if (!this._running) return;
+      const t = ts * 0.001;
+      const dt = this._prevTs ? Math.min(0.05, (ts - this._prevTs) * 0.001) : 0.016;
+      this._prevTs = ts;
+      const ctx = this.ctx; const { w, h } = this;
+      ctx.drawImage(this.offscreen, 0, 0, w, h);
+
+      for (const layer of this.layers) {
+        for (const s of layer) {
+          s.x += s.driftX * dt;
+          s.y += s.driftY * dt;
+          if (s.x > w + 8) s.x = -8;
+          else if (s.x < -8) s.x = w + 8;
+          if (s.y > h + 8) s.y = -8;
+          else if (s.y < -8) s.y = h + 8;
+
+          const tw = 0.7 + 0.3 * Math.sin(t * s.twinkleSpeed + s.twinkle);
+          const alpha = Math.min(1, s.a * tw);
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, 6.2832);
+          ctx.fillStyle = `rgba(${s.color[0]},${s.color[1]},${s.color[2]},${alpha.toFixed(3)})`;
+          ctx.fill();
+
+          if (s.r > 1.25) {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r * 2.8, 0, 6.2832);
+            ctx.fillStyle = `rgba(${s.color[0]},${s.color[1]},${s.color[2]},${(alpha * 0.13).toFixed(3)})`;
+            ctx.fill();
+          }
+        }
+      }
+
+      for (const s of this.twinklers) {
+        const op = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * s.speed * 628 + s.phase));
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.2832);
+        ctx.fillStyle = `rgba(210,220,255,${op.toFixed(2)})`; ctx.fill();
+      }
+
+      if (ts > this._nextShooterAt && this._shooters.length < 3) {
+        this._spawnShooter(ts);
+      }
+      if (this._shooters.length) {
+        const keep = [];
+        for (const sh of this._shooters) {
+          sh.life += dt;
+          sh.x += sh.vx * dt;
+          sh.y += sh.vy * dt;
+          if (sh.life < sh.ttl && sh.x < w + sh.len && sh.y < h + sh.len) {
+            const p = sh.life / sh.ttl;
+            const alpha = (1 - p) * 0.55;
+            const tx = sh.x - sh.len * 0.9;
+            const ty = sh.y - sh.len * 0.38;
+            const g = ctx.createLinearGradient(sh.x, sh.y, tx, ty);
+            g.addColorStop(0, `rgba(255,245,214,${alpha.toFixed(3)})`);
+            g.addColorStop(1, 'rgba(255,245,214,0)');
+            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(sh.x, sh.y);
+            ctx.lineTo(tx, ty);
+            ctx.stroke();
+            keep.push(sh);
+          }
+        }
+        this._shooters = keep;
+      }
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+  destroy() { this._running = false; cancelAnimationFrame(this._raf); }
+}
+
+/* ════════════════ VIEWPORT ENGINE ════════════════ */
+class ViewportEngine {
+  constructor(worldEl, viewportEl) {
+    this.world = worldEl; this.viewport = viewportEl;
+    this.x = 0; this.y = 0; this.scale = 0.55;
+    this.targetX = 0; this.targetY = 0; this.targetScale = 0.55;
+    this.MIN_SCALE = 0.18; this.MAX_SCALE = 3.2;
+    this.vx = 0; this.vy = 0; this.FRICTION = 0.88;
+    this._dragging = false; this._lastX = 0; this._lastY = 0;
+    this._pinchDist = 0; this._running = false; this._raf = null;
+    this.onZoomChange = null;
+    this._bindEvents(); this._startLoop();
+  }
+  zoomTo(wx, wy, scale) {
+    const vW = this.viewport.offsetWidth; const vH = this.viewport.offsetHeight;
+    this.targetScale = this._clamp(scale);
+    this.targetX = -wx * this.targetScale + vW / 2;
+    this.targetY = -wy * this.targetScale + vH / 2;
+    this.vx = 0; this.vy = 0;
+    if (this.onZoomChange) this.onZoomChange(this.targetScale);
+  }
+  reset() {
+    this.targetX = 0; this.targetY = 0; this.targetScale = 0.55;
+    this.vx = 0; this.vy = 0;
+    if (this.onZoomChange) this.onZoomChange(this.targetScale);
+  }
+  getScale()  { return this.scale; }
+  getOffset() { return { x: this.x, y: this.y }; }
+  _startLoop() {
+    this._running = true;
+    const tick = () => {
+      if (!this._running) return;
+      const EASE = 0.10;
+      if (!this._dragging) {
+        this.targetX += this.vx; this.targetY += this.vy;
+        this.vx *= this.FRICTION; this.vy *= this.FRICTION;
+      }
+      this.x     += (this.targetX - this.x)     * EASE;
+      this.y     += (this.targetY - this.y)     * EASE;
+      this.scale += (this.targetScale - this.scale) * EASE;
+      this.world.style.transform = `translate(${this.x}px,${this.y}px) scale(${this.scale})`;
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+  _bindEvents() {
+    const vp = this.viewport;
+    this._onMD = e => { if(e.button!==0)return; this._dragging=true; this._lastX=e.clientX; this._lastY=e.clientY; this.vx=0;this.vy=0; vp.classList.add('grabbing'); };
+    this._onMM = e => { if(!this._dragging)return; const dx=e.clientX-this._lastX,dy=e.clientY-this._lastY; this._lastX=e.clientX;this._lastY=e.clientY; this.targetX+=dx;this.targetY+=dy;this.vx=dx;this.vy=dy; };
+    this._onMU = () => { this._dragging=false; vp.classList.remove('grabbing'); };
+    this._onWH = e => { e.preventDefault(); const f=e.deltaY<0?1.12:0.89; const r=vp.getBoundingClientRect(); this._zoomAround(e.clientX-r.left, e.clientY-r.top, f); };
+    this._onTS = e => { if(e.touches.length===1){this._dragging=true;this._lastX=e.touches[0].clientX;this._lastY=e.touches[0].clientY;this.vx=0;this.vy=0;}else if(e.touches.length===2){this._dragging=false;this._pinchDist=this._pDist(e.touches);} };
+    this._onTM = e => { if(e.touches.length===1&&this._dragging){e.preventDefault();const dx=e.touches[0].clientX-this._lastX,dy=e.touches[0].clientY-this._lastY;this._lastX=e.touches[0].clientX;this._lastY=e.touches[0].clientY;this.targetX+=dx;this.targetY+=dy;this.vx=dx;this.vy=dy;}else if(e.touches.length===2){e.preventDefault();const d=this._pDist(e.touches);const r=d/this._pinchDist;this._pinchDist=d;const cx=(e.touches[0].clientX+e.touches[1].clientX)/2,cy=(e.touches[0].clientY+e.touches[1].clientY)/2;this._zoomAround(cx,cy,r);} };
+    this._onTE = () => { this._dragging=false; };
+    vp.addEventListener('mousedown',  this._onMD, {passive:true});
+    window.addEventListener('mousemove', this._onMM, {passive:true});
+    window.addEventListener('mouseup',   this._onMU, {passive:true});
+    vp.addEventListener('wheel',      this._onWH, {passive:false});
+    vp.addEventListener('touchstart', this._onTS, {passive:true});
+    vp.addEventListener('touchmove',  this._onTM, {passive:false});
+    vp.addEventListener('touchend',   this._onTE, {passive:true});
+  }
+  _zoomAround(cx, cy, f) {
+    const ns = this._clamp(this.targetScale * f);
+    const r  = ns / this.targetScale;
+    this.targetX = cx - (cx - this.targetX) * r;
+    this.targetY = cy - (cy - this.targetY) * r;
+    this.targetScale = ns;
+    if (this.onZoomChange) this.onZoomChange(ns);
+  }
+  _clamp(s)      { return Math.max(this.MIN_SCALE, Math.min(this.MAX_SCALE, s)); }
+  _pDist(t)      { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+  destroy()      { this._running=false; cancelAnimationFrame(this._raf); }
+}
+
+/* ════════════════ PLANET DATA ════════════════ */
+const PLANETS = [
+  {
+    id:'about',name:'AETHER',subtitle:'About Me',radius:170,size:38,speed:1.0,phase:0.4,tilt:0.14,
+    color:'#7b6fff',gradient:'radial-gradient(circle at 32% 28%, #a99fff 0%, #7b6fff 40%, #3d2fa0 80%, #1a1040 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Hello, Universe</h3>
+        <p style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);line-height:1.75">
+          I'm <strong style="color:var(--text-primary)">Alex Nova</strong> — a full-stack engineer and creative technologist
+          crafting digital experiences at the intersection of performance, design, and storytelling.
+          Currently building the future at <strong style="color:var(--teal)">Nebula Labs</strong>.
+        </p>
+      </div>
+      <div class="panel-section"><h3>At a Glance</h3>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-num">6+</div><div class="stat-lbl">Years Exp</div></div>
+          <div class="stat-box"><div class="stat-num">40+</div><div class="stat-lbl">Projects</div></div>
+          <div class="stat-box"><div class="stat-num">12</div><div class="stat-lbl">OSS Repos</div></div>
+          <div class="stat-box"><div class="stat-num">3</div><div class="stat-lbl">Companies</div></div>
+        </div>
+      </div>
+      <div class="panel-section"><h3>Currently</h3>
+        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.7">
+          🌍 Based in San Francisco<br>💼 Senior Engineer @ Nebula Labs<br>
+          🎯 Focused on WebGPU & Edge computing<br>✍️ Writing about systems design
+        </p>
+      </div>`
+  },
+  {
+    id:'skills',name:'FORGE',subtitle:'Skills & Stack',radius:260,size:44,speed:0.72,phase:1.2,tilt:0.13,
+    color:'#52e3c2',gradient:'radial-gradient(circle at 35% 30%, #8ffce5 0%, #52e3c2 40%, #1a9e85 75%, #0a3d30 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Frontend</h3><div class="skill-grid">
+        ${['React','TypeScript','Next.js','Svelte','Three.js','WebGL','CSS/Animations'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
+      </div></div>
+      <div class="panel-section"><h3>Backend</h3><div class="skill-grid">
+        ${['Node.js','Rust','Go','PostgreSQL','Redis','GraphQL','gRPC'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
+      </div></div>
+      <div class="panel-section"><h3>Infrastructure</h3><div class="skill-grid">
+        ${['AWS','GCP','Docker','Kubernetes','Terraform','Vercel','CI/CD'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
+      </div></div>
+      <div class="panel-section"><h3>Proficiency</h3>
+        ${[['TypeScript / JS',95],['Rust',78],['System Design',88],['UX / Design',82]].map(([n,p])=>`
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+              <span style="font-family:var(--font-mono);font-size:10px">${n}</span>
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${p}%</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px">
+              <div style="height:100%;width:${p}%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:2px"></div>
+            </div>
+          </div>`).join('')}
+      </div>`
+  },
+  {
+    id:'projects',name:'ATLAS',subtitle:'Featured Work',radius:360,size:50,speed:0.55,phase:2.5,tilt:0.11,
+    color:'#ffd47e',gradient:'radial-gradient(circle at 30% 28%, #fff2b8 0%, #ffd47e 35%, #e8960a 75%, #6b3a00 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Featured Projects</h3>
+        ${[
+          {name:'VoidDB',desc:'Distributed key-value store in Rust with Raft consensus. 2M ops/sec on commodity hardware.',tag:'⚡ Rust · Raft · gRPC'},
+          {name:'Lumina UI',desc:'Open-source component library with GPU-accelerated animations. 4k GitHub stars.',tag:'★ React · WebGL · 4.1k ⭐'},
+          {name:'EdgeStream',desc:'Real-time video transcoding at the edge. 40% cost reduction vs cloud-only.',tag:'🌐 Go · Cloudflare · WASM'},
+          {name:'CosmicCMS',desc:'Headless CMS with live collaboration on CRDTs. Powers 200+ production sites.',tag:'🧩 Node · CRDTs · GraphQL'},
+        ].map(p=>`<div class="project-card"><h4>${p.name}</h4><p>${p.desc}</p><p style="margin-top:6px;color:var(--accent);font-size:10px">${p.tag}</p></div>`).join('')}
+      </div>`
+  },
+  {
+    id:'experience',name:'KRONOS',subtitle:'Work History',radius:460,size:34,speed:0.42,phase:0.9,tilt:0.10,
+    color:'#ff8080',gradient:'radial-gradient(circle at 32% 28%, #ffb8b8 0%, #ff8080 38%, #cc2222 78%, #550000 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Timeline</h3>
+        ${[
+          ['2023 — Present','Senior Staff Engineer','Nebula Labs · San Francisco'],
+          ['2021 — 2023','Principal Engineer','Vertex Systems · Remote'],
+          ['2019 — 2021','Senior Full-Stack Engineer','Quasar IO · New York'],
+          ['2018 — 2019','Software Engineer','Polaris Tech · Boston'],
+        ].map(([y,t,c])=>`
+          <div class="timeline-item">
+            <div class="timeline-year">${y}</div>
+            <div class="timeline-title">${t}</div>
+            <div class="timeline-sub">${c}</div>
+          </div>`).join('')}
+      </div>
+      <div class="panel-section"><h3>Education</h3>
+        <div class="timeline-item">
+          <div class="timeline-year">2014 — 2018</div>
+          <div class="timeline-title">B.S. Computer Science</div>
+          <div class="timeline-sub">MIT · Magna Cum Laude</div>
+        </div>
+      </div>`
+  },
+  {
+    id:'opensource',name:'NEXUS',subtitle:'Open Source',radius:340,size:30,speed:0.65,phase:4.1,tilt:0.16,
+    color:'#a0d4ff',gradient:'radial-gradient(circle at 32% 28%, #e0f2ff 0%, #a0d4ff 38%, #3090e0 78%, #0a3060 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Repositories</h3>
+        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
+          1,200+ commits across 12 repos. Building in public.
+        </p>
+        ${[
+          {name:'lumina-ui',stars:'4.1k',desc:'GPU-accelerated React components'},
+          {name:'voiddb',stars:'2.8k',desc:'Distributed KV store in Rust'},
+          {name:'edgeq',stars:'1.2k',desc:'Edge-first job queue system'},
+          {name:'cssmagic',stars:'980',desc:'Zero-runtime CSS animation DSL'},
+        ].map(r=>`<div class="project-card"><h4 style="font-family:var(--font-mono)">⬡ ${r.name}</h4><p>${r.desc} · ★ ${r.stars}</p></div>`).join('')}
+      </div>`
+  },
+  {
+    id:'writing',name:'LYRA',subtitle:'Blog & Writing',radius:510,size:28,speed:0.35,phase:3.3,tilt:0.09,
+    color:'#e8a0ff',gradient:'radial-gradient(circle at 32% 28%, #f8d8ff 0%, #e8a0ff 38%, #9030c0 78%, #300050 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Recent Articles</h3>
+        ${[
+          {title:'Why Rust Outperforms Go for Systems Work',date:'Mar 2026',read:'8 min'},
+          {title:'WebGPU: The Future of Browser Graphics',date:'Feb 2026',read:'12 min'},
+          {title:'Building a 10M RPS API with Edge Functions',date:'Jan 2026',read:'6 min'},
+          {title:'CRDTs Explained: Conflict-Free Collaboration',date:'Dec 2025',read:'10 min'},
+        ].map(a=>`<div class="project-card"><h4 style="font-size:12px">${a.title}</h4><p style="margin-top:5px">${a.date} · ${a.read} read</p></div>`).join('')}
+      </div>`
+  },
+  {
+    id:'design',name:'PIXEL',subtitle:'Design Work',radius:220,size:26,speed:0.88,phase:5.5,tilt:0.15,
+    color:'#ff9f52',gradient:'radial-gradient(circle at 32% 28%, #ffcc99 0%, #ff9f52 38%, #c04010 78%, #3d0f00 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Design Portfolio</h3>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-num">18</div><div class="stat-lbl">UI Systems</div></div>
+          <div class="stat-box"><div class="stat-num">6</div><div class="stat-lbl">Brand Kits</div></div>
+          <div class="stat-box"><div class="stat-num">99</div><div class="stat-lbl">Figma Score</div></div>
+          <div class="stat-box"><div class="stat-num">3k</div><div class="stat-lbl">Dribbble ♥</div></div>
+        </div>
+      </div>
+      <div class="panel-section"><h3>Tools</h3><div class="skill-grid">
+        ${['Figma','Framer','Spline','Rive','Adobe XD','Principle'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
+      </div></div>`
+  },
+  {
+    id:'contact',name:'BEACON',subtitle:'Get In Touch',radius:600,size:36,speed:0.28,phase:1.8,tilt:0.08,
+    color:'#60d090',gradient:'radial-gradient(circle at 32% 28%, #a0ffc0 0%, #60d090 38%, #208050 78%, #062818 100%)',
+    content:()=>`
+      <div class="panel-section"><h3>Let's Connect</h3>
+        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
+          Open to interesting projects, collaborations, and conversations.
+        </p>
+        ${[
+          {icon:'📧',label:'alex@cosmicdeveloper.io',bg:'rgba(96,208,144,0.15)',href:'mailto:alex@cosmicdeveloper.io'},
+          {icon:'⬡', label:'github.com/alexnova',bg:'rgba(255,255,255,0.07)',href:'#'},
+          {icon:'in',label:'linkedin.com/in/alexnova',bg:'rgba(100,160,255,0.12)',href:'#'},
+          {icon:'𝕏', label:'@alexnova',bg:'rgba(100,200,255,0.1)',href:'#'},
+        ].map(c=>`
+          <a class="contact-link" href="${c.href}" target="_blank">
+            <div class="contact-icon" style="background:${c.bg}">${c.icon}</div>
+            ${c.label}
+          </a>`).join('')}
+      </div>
+      <div class="panel-section"><h3>Availability</h3>
+        <div class="project-card"><h4 style="color:var(--teal)">✓ Open to Freelance</h4><p>Limited slots for Q2 2026. Min 3-month engagements.</p></div>
+        <div class="project-card"><h4 style="color:var(--gold)">✦ Speaking</h4><p>Available for conferences on systems design & performance.</p></div>
+      </div>`
+  },
+];
+
+/* ════════════════ APP ════════════════ */
+class CosmicApp {
+  constructor() {
+    this.world    = document.getElementById('world');
+    this.viewport = document.getElementById('viewport');
+    this.panel    = document.getElementById('content-panel');
+    this.panelDot = document.getElementById('panel-dot');
+    this.panelTitle = document.getElementById('panel-title');
+    this.panelSub   = document.getElementById('panel-subtitle');
+    this.panelBody  = document.getElementById('panel-body');
+    this.panelClose = document.getElementById('panel-close');
+    this.zoomReadout = document.getElementById('zoom-readout');
+    this.minimap  = document.getElementById('minimap');
+    this.quicknav = document.getElementById('quicknav');
+    this.tooltip  = document.getElementById('tooltip');
+    this.warp     = document.getElementById('warp-overlay');
+
+    this.activePlanetId = null;
+    this.tourActive     = false;
+    this.tourIndex      = 0;
+    this._tourTimer     = null;
+    this.orbitSpeed     = 0.00008;
+    this.orbitFast      = false;
+
+    /* Orbit state */
+    this._startT = performance.now();
+    this._planetEls = [];
+
+    /* Minimap canvas */
+    this._mmCanvas = null;
+    this._mmCtx    = null;
+
+    this._raf = null;
+    this._running = false;
+  }
+
+  init() {
+    /* Engines */
+    this.sf  = new Starfield(document.getElementById('starfield'));
+    this.vp  = new ViewportEngine(this.world, this.viewport);
+    this.vp.onZoomChange = s => this._onZoomChange(s);
+
+    /* Build scene */
+    this._buildScene();
+    this._buildMinimap();
+    this._buildQuickNav();
+    this._bindUI();
+
+    /* Main loop */
+    this._running = true;
+    const tick = (ts) => {
+      if (!this._running) return;
+      this._updateOrbits(ts);
+      this._updateMinimap();
+      this._updateZoomReadout();
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+
+  /* ─── SCENE BUILD ──────────────────────────────── */
+
+  _buildScene() {
+    /* Orbit rings */
+    const rings = [...new Set(PLANETS.map(p => p.radius))].sort((a,b)=>a-b);
+    rings.forEach(r => {
+      const el = document.createElement('div');
+      el.className = 'orbit-ring';
+      el.style.cssText = `width:${r*2}px;height:${r*2*0.13}px;`;
+      this.world.appendChild(el);
+    });
+
+    /* Sun */
+    const sunWrap = document.createElement('div');
+    sunWrap.id = 'sun-wrapper';
+    sunWrap.innerHTML = `
+      <div id="sun">
+        <div class="planet-shine"></div>
+      </div>
+      <div id="sun-pulse"></div>`;
+    this.world.appendChild(sunWrap);
+    sunWrap.querySelector('#sun').addEventListener('click', () => this.vp.reset());
+
+    /* Planets */
+    this._planetEls = PLANETS.map(p => {
+      const wrap = document.createElement('div');
+      wrap.className = 'planet-wrapper';
+      wrap.dataset.id = p.id;
+
+      const planet = document.createElement('div');
+      planet.className = 'planet';
+      planet.style.cssText = `width:${p.size}px;height:${p.size}px;background:${p.gradient};box-shadow:0 0 ${p.size*0.5}px ${p.size*0.2}px ${p.color}44;`;
+
+      const inner = document.createElement('div');
+      inner.className = 'planet-inner';
+      inner.innerHTML = `<div class="planet-shine"></div>`;
+      planet.appendChild(inner);
+
+      const label = document.createElement('div');
+      label.className = 'planet-label';
+      label.textContent = p.name;
+
+      const sub = document.createElement('div');
+      sub.className = 'planet-sublabel';
+      sub.textContent = p.subtitle;
+
+      wrap.appendChild(planet);
+      wrap.appendChild(label);
+      wrap.appendChild(sub);
+      this.world.appendChild(wrap);
+
+      /* Click */
+      planet.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._focusPlanet(p, wrap);
+      });
+
+      /* Hover tooltip */
+      planet.addEventListener('mouseenter', () => {
+        this.tooltip.textContent = `${p.name} — ${p.subtitle}`;
+        this.tooltip.classList.add('show');
+      });
+      planet.addEventListener('mousemove', (e) => {
+        this.tooltip.style.left = (e.clientX + 14) + 'px';
+        this.tooltip.style.top  = (e.clientY - 28) + 'px';
+      });
+      planet.addEventListener('mouseleave', () => this.tooltip.classList.remove('show'));
+
+      return { el: wrap, planet: p };
+    });
+  }
+
+  /* ─── MINIMAP ─────────────────────────────────── */
+
+  _buildMinimap() {
+    const mm = this.minimap;
+    const W = 110; const H = 110;
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * 2; canvas.height = H * 2;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    mm.appendChild(canvas);
+    this._mmCanvas = canvas;
+    this._mmCtx    = canvas.getContext('2d');
+    this._mmCtx.scale(2, 2);
+    this._mmW = W; this._mmH = H;
+
+    /* Indicator */
+    this._mmInd = document.createElement('div');
+    this._mmInd.id = 'minimap-viewport-indicator';
+    mm.appendChild(this._mmInd);
+  }
+
+  _updateMinimap() {
+    const ctx = this._mmCtx;
+    if (!ctx) return;
+    const W = this._mmW; const H = this._mmH;
+    const WORLD_R = 680;
+    const scale = Math.min(W, H) / (WORLD_R * 2.4);
+    const cx = W / 2; const cy = H / 2;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(4,5,13,0.5)';
+    ctx.fillRect(0, 0, W, H);
+
+    /* Rings */
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 0.5;
+    PLANETS.forEach(p => {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, p.radius * scale, p.radius * scale * 0.13, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    /* Sun */
+    ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffd47e'; ctx.fill();
+
+    /* Planets at current positions */
+    this._currentPositions && this._currentPositions.forEach(pos => {
+      const p = PLANETS.find(p => p.id === pos.id);
+      if (!p) return;
+      const mx = cx + pos.x * scale;
+      const my = cy + pos.y * scale * 0.13;
+      ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = p.color; ctx.fill();
+    });
+
+    /* Viewport indicator */
+    const vs = this.vp.getScale();
+    const off = this.vp.getOffset();
+    const vW = window.innerWidth; const vH = window.innerHeight;
+    const worldW = vW / vs; const worldH = vH / vs;
+    const worldX = (-off.x - vW/2) / vs;
+    const worldY = (-off.y - vH/2) / vs;
+    const ix = cx + worldX * scale;
+    const iy = cy + worldY * scale * 0.13;
+    const iw = worldW * scale; const ih = worldH * scale * 0.13;
+    const ind = this._mmInd;
+    ind.style.cssText = `left:${Math.max(0,ix)}px;top:${Math.max(0,iy)}px;width:${Math.min(iw,W-Math.max(0,ix))}px;height:${Math.min(ih,H-Math.max(0,iy))}px;`;
+  }
+
+  /* ─── QUICK NAV ───────────────────────────────── */
+
+  _buildQuickNav() {
+    /* Sun dot */
+    const sunBtn = document.createElement('button');
+    sunBtn.className = 'qn-btn';
+    sunBtn.dataset.label = 'Home';
+    sunBtn.style.background = '#ffd47e';
+    sunBtn.addEventListener('click', () => this.vp.reset());
+    this.quicknav.appendChild(sunBtn);
+
+    PLANETS.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'qn-btn';
+      btn.dataset.id = p.id;
+      btn.dataset.label = p.name;
+      btn.style.background = p.color + '80';
+      btn.addEventListener('click', () => {
+        const wr = this._planetEls.find(pe => pe.planet.id === p.id);
+        if (wr) this._focusPlanet(p, wr.el);
+      });
+      this.quicknav.appendChild(btn);
+    });
+  }
+
+  /* ─── ORBIT UPDATE ────────────────────────────── */
+
+  _updateOrbits(ts) {
+    const t = (ts - this._startT) * 0.001 * this.orbitSpeed * 10000 * 0.00008;
+    const positions = [];
+
+    const showLabels = this.vp.getScale() > 0.45;
+    this.world.classList.toggle('show-labels', showLabels);
+
+    this._planetEls.forEach(({ el, planet: p }) => {
+      const angle = t * p.speed + p.phase;
+      const x = Math.cos(angle) * p.radius;
+      const y = Math.sin(angle) * p.radius * (p.tilt ?? 0.13);
+      el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+      positions.push({ id: p.id, x, y });
+    });
+
+    this._currentPositions = positions;
+  }
+
+  /* ─── ZOOM/FOCUS ──────────────────────────────── */
+
+  _focusPlanet(p, wrapEl) {
+    if (this.tourActive) this._stopTour();
+
+    /* Get current planet screen position from transform */
+    const style = wrapEl.style.transform;
+    const match = style.match(/translate\(calc\(-50% \+ ([-\d.]+)px\), calc\(-50% \+ ([-\d.]+)px\)\)/);
+    const wx = match ? parseFloat(match[1]) : 0;
+    const wy = match ? parseFloat(match[2]) : 0;
+
+    this._warpEffect();
+    this.vp.zoomTo(wx, wy, 1.6);
+
+    /* Panel */
+    this.activePlanetId = p.id;
+    this.panelDot.style.cssText   = `background:${p.color};box-shadow:0 0 10px ${p.color}`;
+    this.panelTitle.textContent   = p.name;
+    this.panelSub.textContent     = p.subtitle;
+    this.panelBody.innerHTML      = p.content();
+    this.panel.classList.add('visible');
+
+    /* Quick nav active state */
+    this.quicknav.querySelectorAll('.qn-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.id === p.id);
+    });
+  }
+
+  _hidePanel() {
+    this.panel.classList.remove('visible');
+    this.activePlanetId = null;
+    this.quicknav.querySelectorAll('.qn-btn').forEach(b => b.classList.remove('active'));
+    setTimeout(() => { this.panelBody.innerHTML = ''; }, 450);
+  }
+
+  /* ─── WARP EFFECT ─────────────────────────────── */
+
+  _warpEffect() {
+    this.warp.classList.add('active');
+    setTimeout(() => this.warp.classList.remove('active'), 500);
+  }
+
+  /* ─── AUTO TOUR ───────────────────────────────── */
+
+  _startTour() {
+    this.tourActive = true;
+    document.getElementById('btn-tour').classList.add('active');
+    this.tourIndex = 0;
+    this._nextTourStep();
+  }
+
+  _nextTourStep() {
+    if (!this.tourActive) return;
+    const p = PLANETS[this.tourIndex % PLANETS.length];
+    const wr = this._planetEls.find(pe => pe.planet.id === p.id);
+    if (wr) this._focusPlanet(p, wr.el);
+    this.tourIndex++;
+    this._tourTimer = setTimeout(() => this._nextTourStep(), 4500);
+  }
+
+  _stopTour() {
+    this.tourActive = false;
+    clearTimeout(this._tourTimer);
+    document.getElementById('btn-tour').classList.remove('active');
+  }
+
+  /* ─── ZOOM READOUT ────────────────────────────── */
+
+  _onZoomChange(s) {
+    this.zoomReadout.textContent = Math.round(s * 100) + '%';
+  }
+
+  _updateZoomReadout() {
+    const s = this.vp.getScale();
+    this.zoomReadout.textContent = Math.round(s * 100) + '%';
+  }
+
+  /* ─── UI BINDINGS ─────────────────────────────── */
+
+  _bindUI() {
+    /* Panel close */
+    this.panelClose.addEventListener('click', () => { this._hidePanel(); this.vp.reset(); });
+
+    /* Toolbar */
+    document.getElementById('btn-zoom-in').addEventListener('click',  () => {
+      const s = this.vp.getScale(); this.vp.zoomTo(0, 0, s * 1.35);
+    });
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      const s = this.vp.getScale(); this.vp.zoomTo(0, 0, s * 0.75);
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      this._hidePanel(); this.vp.reset(); this._stopTour();
+    });
+    document.getElementById('btn-tour').addEventListener('click', () => {
+      this.tourActive ? this._stopTour() : this._startTour();
+    });
+    document.getElementById('btn-speed').addEventListener('click', (e) => {
+      this.orbitFast = !this.orbitFast;
+      this.orbitSpeed = this.orbitFast ? 0.00032 : 0.00008;
+      e.currentTarget.classList.toggle('active', this.orbitFast);
+    });
+
+    /* Click on viewport background = close panel */
+    this.viewport.addEventListener('click', (e) => {
+      if (e.target === this.viewport || e.target === this.world) {
+        this._hidePanel();
+      }
+    });
+
+    /* Keyboard */
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { this._hidePanel(); this.vp.reset(); this._stopTour(); }
+      if (e.key === 'r' || e.key === 'R') { this._hidePanel(); this.vp.reset(); }
+      if (e.key === 't' || e.key === 'T') { this.tourActive ? this._stopTour() : this._startTour(); }
+    }, { passive: true });
+  }
+}
+
+/* ════════════════ BOOT ════════════════ */
+const app = new CosmicApp();
+
+document.getElementById('intro-btn').addEventListener('click', () => {
+  const intro = document.getElementById('intro');
+  intro.classList.add('hidden');
+  setTimeout(() => { intro.remove(); }, 900);
+  app.init();
+});
+
+/* Allow skipping intro on any key */
+window.addEventListener('keydown', (e) => {
+  const intro = document.getElementById('intro');
+  if (intro && !intro.classList.contains('hidden')) {
+    intro.classList.add('hidden');
+    setTimeout(() => { intro.remove(); }, 900);
+    app.init();
+  }
+}, { once: true, passive: true });
+
+</script>
+</body>
+</html>
