@@ -617,11 +617,22 @@ class CosmicApp {
       const planet = document.createElement('div');
       planet.className = 'planet';
       planet.style.cssText = `width:${p.size}px;height:${p.size}px;background:${p.gradient};box-shadow:0 0 ${p.size*0.5}px ${p.size*0.2}px ${p.color}44;`;
+      planet.style.setProperty('--planet-color', p.color);
+      planet.style.setProperty('--planet-spin', `${(22 + Math.random() * 22).toFixed(2)}s`);
 
       const inner = document.createElement('div');
       inner.className = 'planet-inner';
       inner.innerHTML = `<div class="planet-shine"></div>`;
       planet.appendChild(inner);
+
+      let ring = null;
+      if (p.id === 'projects') {
+        ring = document.createElement('div');
+        ring.className = 'planet-ring';
+        ring.style.width = `${(p.size * 2.2).toFixed(1)}px`;
+        ring.style.height = `${(p.size * 0.72).toFixed(1)}px`;
+        ring.style.borderColor = `${p.color}a0`;
+      }
 
       const label = document.createElement('div');
       label.className = 'planet-label';
@@ -632,6 +643,7 @@ class CosmicApp {
       sub.textContent = p.subtitle;
 
       wrap.appendChild(planet);
+      if (ring) wrap.appendChild(ring);
       wrap.appendChild(label);
       wrap.appendChild(sub);
       this.world.appendChild(wrap);
@@ -653,7 +665,7 @@ class CosmicApp {
       });
       planet.addEventListener('mouseleave', () => this.tooltip.classList.remove('show'));
 
-      return { el: wrap, planet: p };
+      return { el: wrap, planet: p, planetEl: planet };
     });
   }
 
@@ -759,11 +771,27 @@ class CosmicApp {
     const showLabels = this.vp.getScale() > 0.45;
     this.world.classList.toggle('show-labels', showLabels);
 
-    this._planetEls.forEach(({ el, planet: p }) => {
+    this._planetEls.forEach(({ el, planet: p, planetEl }) => {
       const angle = t * p.speed + p.phase;
       const x = Math.cos(angle) * p.radius;
-      const y = Math.sin(angle) * p.radius * (p.tilt ?? 0.13);
-      el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+      const orbitTilt = (p.tilt ?? 0.13);
+      const y = Math.sin(angle) * p.radius * orbitTilt;
+      const depth = y / Math.max(1, p.radius * orbitTilt);
+      const depthScale = 0.92 + ((depth + 1) * 0.12);
+      const glowMul = 0.7 + ((depth + 1) * 0.22);
+      const radiusGlow = (p.size * 0.5 * glowMul).toFixed(2);
+      const blurGlow = (p.size * 0.2 * glowMul).toFixed(2);
+
+      el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${depthScale.toFixed(3)})`;
+      el.style.zIndex = `${Math.round(2000 + depth * 1000)}`;
+      planetEl.style.boxShadow = `0 0 ${radiusGlow}px ${blurGlow}px ${p.color}44`;
+      planetEl.style.setProperty('--planet-atmo', `${(0.32 + (depth + 1) * 0.11).toFixed(3)}`);
+
+      const len = Math.hypot(x, y) || 1;
+      const lightX = (-x / len);
+      const lightY = (-y / len);
+      planetEl.style.setProperty('--sun-x', `${(50 + lightX * 28).toFixed(2)}%`);
+      planetEl.style.setProperty('--sun-y', `${(50 + lightY * 28).toFixed(2)}%`);
       positions.push({ id: p.id, x, y });
     });
 
