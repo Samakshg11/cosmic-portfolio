@@ -1,266 +1,174 @@
-/**
- * COSMIC PORTFOLIO ENGINE
- * engine/viewport.js — Zoom, pan, physics, orbit math
- */
-
-'use strict';
-
 export class ViewportEngine {
   constructor(worldEl, viewportEl) {
-    this.world    = worldEl;
+    this.world = worldEl;
     this.viewport = viewportEl;
-
-    /* State */
-    this.x = 0; this.y = 0; this.scale = 0.55;
-    this.targetX = 0; this.targetY = 0; this.targetScale = 0.55;
-
-    /* Limits */
-    this.MIN_SCALE = 0.18;
-    this.MAX_SCALE = 3.2;
-
-    /* Pan inertia */
-    this.vx = 0; this.vy = 0;
-    this.FRICTION = 0.88;
-    this.ZOOM_WHEEL_SENSITIVITY = 0.0016;
-
-    /* RAF handle */
-    this._raf = null;
-    this._running = false;
-
-    /* Interaction state */
-    this._dragging   = false;
-    this._lastX      = 0; this._lastY = 0;
-    this._pinchDist  = 0;
-
-    /* Callbacks */
+    this.x = 0;
+    this.y = 0;
+    this.scale = 2.25;
+    this.targetX = 0;
+    this.targetY = 0;
+    this.targetScale = 2.25;
+    this.minScale = 0.3;
+    this.maxScale = 14;
+    this.zoomBoost = 1;
+    this.vx = 0;
+    this.vy = 0;
+    this.dragging = false;
+    this.lastX = 0;
+    this.lastY = 0;
+    this.pinchDist = 0;
+    this.friction = 0.92;
+    this.wheelSensitivity = 0.0011;
+    this.floatX = 0;
+    this.floatY = 0;
+    this.raf = null;
     this.onZoomChange = null;
-
-    this._bindEvents();
-    this._startLoop();
+    this.bindEvents();
+    this.loop();
   }
 
-  /* ── PUBLIC API ─────────────────────────────────── */
-
-  zoomTo(targetX, targetY, scale, durationMs = 700) {
-    /* Animate camera to a world position */
-    const vW = this.viewport.offsetWidth;
-    const vH = this.viewport.offsetHeight;
-    this.targetScale = this._clampScale(scale);
-    this.targetX = -targetX * this.targetScale + vW / 2;
-    this.targetY = -targetY * this.targetScale + vH / 2;
-    this.vx = 0; this.vy = 0;
-    if (this.onZoomChange) this.onZoomChange(this.targetScale);
-  }
-
-  reset() {
-    this.targetX = 0; this.targetY = 0;
-    this.targetScale = 0.55;
-    this.vx = 0; this.vy = 0;
-    if (this.onZoomChange) this.onZoomChange(this.targetScale);
-  }
-
-  zoomBy(factor, cx = this.viewport.offsetWidth * 0.5, cy = this.viewport.offsetHeight * 0.5) {
-    this._zoomAround(cx, cy, factor);
-  }
-
-  getScale() { return this.scale; }
-  getOffset() { return { x: this.x, y: this.y }; }
-
-  worldToScreen(wx, wy) {
-    const vW = this.viewport.offsetWidth;
-    const vH = this.viewport.offsetHeight;
-    return {
-      x: wx * this.scale + this.x + vW / 2,
-      y: wy * this.scale + this.y + vH / 2,
-    };
-  }
-
-  screenToWorld(sx, sy) {
-    const vW = this.viewport.offsetWidth;
-    const vH = this.viewport.offsetHeight;
-    return {
-      x: (sx - this.x - vW / 2) / this.scale,
-      y: (sy - this.y - vH / 2) / this.scale,
-    };
-  }
-
-  destroy() {
-    this._running = false;
-    cancelAnimationFrame(this._raf);
-    this._unbindEvents();
-  }
-
-  /* ── INTERNAL LOOP ──────────────────────────────── */
-
-  _startLoop() {
-    this._running = true;
-    const tick = () => {
-      if (!this._running) return;
-      this._update();
-      this._raf = requestAnimationFrame(tick);
-    };
-    this._raf = requestAnimationFrame(tick);
-  }
-
-  _update() {
-    const EASE = 0.10;
-
-    if (!this._dragging) {
-      /* Apply inertia */
-      this.targetX += this.vx;
-      this.targetY += this.vy;
-      this.vx *= this.FRICTION;
-      this.vy *= this.FRICTION;
-    }
-
-    /* Lerp toward target */
-    this.x     += (this.targetX - this.x)     * EASE;
-    this.y     += (this.targetY - this.y)     * EASE;
-    this.scale += (this.targetScale - this.scale) * EASE;
-
-    /* Apply to DOM — ONE transform call, no layout thrashing */
-    this.world.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`;
-
-    if (this.onZoomChange && Math.abs(this.scale - this.targetScale) < 0.001) {
-      /* settled — emit final value once */
-    }
-  }
-
-  /* ── EVENT BINDING ──────────────────────────────── */
-
-  _bindEvents() {
+  bindEvents() {
     const vp = this.viewport;
 
-    /* Mouse */
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp   = this._onMouseUp.bind(this);
-    this._onWheel     = this._onWheel.bind(this);
+    this.onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      this.dragging = true;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.vx = 0;
+      this.vy = 0;
+      vp.classList.add('grabbing');
+    };
 
-    vp.addEventListener('mousedown',  this._onMouseDown, { passive: true });
-    window.addEventListener('mousemove', this._onMouseMove, { passive: true });
-    window.addEventListener('mouseup',   this._onMouseUp,   { passive: true });
-    vp.addEventListener('wheel',      this._onWheel,     { passive: false });
+    this.onMouseMove = (e) => {
+      if (!this.dragging) return;
+      const dx = e.clientX - this.lastX;
+      const dy = e.clientY - this.lastY;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.targetX += dx;
+      this.targetY += dy;
+      this.vx = dx;
+      this.vy = dy;
+    };
 
-    /* Touch */
-    this._onTouchStart = this._onTouchStart.bind(this);
-    this._onTouchMove  = this._onTouchMove.bind(this);
-    this._onTouchEnd   = this._onTouchEnd.bind(this);
+    this.onMouseUp = () => {
+      this.dragging = false;
+      vp.classList.remove('grabbing');
+    };
 
-    vp.addEventListener('touchstart', this._onTouchStart, { passive: true });
-    vp.addEventListener('touchmove',  this._onTouchMove,  { passive: false });
-    vp.addEventListener('touchend',   this._onTouchEnd,   { passive: true });
-  }
-
-  _unbindEvents() {
-    const vp = this.viewport;
-    vp.removeEventListener('mousedown',  this._onMouseDown);
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mouseup',   this._onMouseUp);
-    vp.removeEventListener('wheel',      this._onWheel);
-    vp.removeEventListener('touchstart', this._onTouchStart);
-    vp.removeEventListener('touchmove',  this._onTouchMove);
-    vp.removeEventListener('touchend',   this._onTouchEnd);
-  }
-
-  /* ── MOUSE ──────────────────────────────────────── */
-
-  _onMouseDown(e) {
-    if (e.button !== 0) return;
-    this._dragging = true;
-    this._lastX = e.clientX; this._lastY = e.clientY;
-    this.vx = 0; this.vy = 0;
-    this.viewport.classList.add('grabbing');
-  }
-
-  _onMouseMove(e) {
-    if (!this._dragging) return;
-    const dx = e.clientX - this._lastX;
-    const dy = e.clientY - this._lastY;
-    this._lastX = e.clientX; this._lastY = e.clientY;
-    this.targetX += dx; this.targetY += dy;
-    this.vx = dx; this.vy = dy;
-  }
-
-  _onMouseUp() {
-    this._dragging = false;
-    this.viewport.classList.remove('grabbing');
-  }
-
-  _onWheel(e) {
-    e.preventDefault();
-    const wheelPx = this._wheelDeltaPx(e);
-    const delta = Math.exp(-wheelPx * this.ZOOM_WHEEL_SENSITIVITY);
-    const rect  = this.viewport.getBoundingClientRect();
-    const cx    = e.clientX - rect.left;
-    const cy    = e.clientY - rect.top;
-    this._zoomAround(cx, cy, delta);
-  }
-
-  /* ── TOUCH ──────────────────────────────────────── */
-
-  _onTouchStart(e) {
-    if (e.touches.length === 1) {
-      this._dragging = true;
-      this._lastX = e.touches[0].clientX;
-      this._lastY = e.touches[0].clientY;
-      this.vx = 0; this.vy = 0;
-    } else if (e.touches.length === 2) {
-      this._dragging = false;
-      this._pinchDist = this._getTouchDist(e.touches);
-    }
-  }
-
-  _onTouchMove(e) {
-    if (e.touches.length === 1 && this._dragging) {
+    this.onWheel = (e) => {
       e.preventDefault();
-      const dx = e.touches[0].clientX - this._lastX;
-      const dy = e.touches[0].clientY - this._lastY;
-      this._lastX = e.touches[0].clientX;
-      this._lastY = e.touches[0].clientY;
-      this.targetX += dx; this.targetY += dy;
-      this.vx = dx; this.vy = dy;
-    } else if (e.touches.length === 2) {
-      e.preventDefault();
-      const dist  = this._getTouchDist(e.touches);
-      const ratio = Math.max(0.92, Math.min(1.08, dist / this._pinchDist));
-      this._pinchDist = dist;
-      const rect = this.viewport.getBoundingClientRect();
-      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-      this._zoomAround(cx, cy, ratio);
-    }
+      const rect = vp.getBoundingClientRect();
+      const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * vp.clientHeight : e.deltaY;
+      const factor = Math.exp(-delta * this.wheelSensitivity * this.zoomBoost);
+      this.zoomToward(e.clientX - rect.left, e.clientY - rect.top, factor);
+    };
+
+    this.onTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        this.dragging = true;
+        this.lastX = e.touches[0].clientX;
+        this.lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        this.dragging = false;
+        this.pinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    };
+
+    this.onTouchMove = (e) => {
+      if (e.touches.length === 1 && this.dragging) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - this.lastX;
+        const dy = e.touches[0].clientY - this.lastY;
+        this.lastX = e.touches[0].clientX;
+        this.lastY = e.touches[0].clientY;
+        this.targetX += dx;
+        this.targetY += dy;
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = Math.max(0.92, Math.min(1.08, dist / Math.max(1, this.pinchDist)));
+        this.pinchDist = dist;
+        const rect = vp.getBoundingClientRect();
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) * 0.5 - rect.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) * 0.5 - rect.top;
+        this.zoomToward(cx, cy, ratio);
+      }
+    };
+
+    this.onTouchEnd = () => {
+      this.dragging = false;
+      vp.classList.remove('grabbing');
+    };
+
+    vp.addEventListener('mousedown', this.onMouseDown, { passive: true });
+    window.addEventListener('mousemove', this.onMouseMove, { passive: true });
+    window.addEventListener('mouseup', this.onMouseUp, { passive: true });
+    vp.addEventListener('wheel', this.onWheel, { passive: false });
+    vp.addEventListener('touchstart', this.onTouchStart, { passive: true });
+    vp.addEventListener('touchmove', this.onTouchMove, { passive: false });
+    vp.addEventListener('touchend', this.onTouchEnd, { passive: true });
   }
 
-  _onTouchEnd() {
-    this._dragging = false;
+  setZoomBoost(boost) {
+    this.zoomBoost = boost;
   }
 
-  /* ── HELPERS ────────────────────────────────────── */
-
-  _zoomAround(cx, cy, factor) {
-    const newScale  = this._clampScale(this.targetScale * factor);
-    const scaleRatio = newScale / Math.max(0.0001, this.targetScale);
-    /* Zoom toward cursor point */
-    this.targetX = cx - (cx - this.targetX) * scaleRatio;
-    this.targetY = cy - (cy - this.targetY) * scaleRatio;
-    this.targetScale = newScale;
-    if (this.onZoomChange) this.onZoomChange(newScale);
+  setView(x, y, scale) {
+    this.x = x;
+    this.y = y;
+    this.scale = scale;
+    this.targetX = x;
+    this.targetY = y;
+    this.targetScale = scale;
   }
 
-  _clampScale(s) {
-    return Math.max(this.MIN_SCALE, Math.min(this.MAX_SCALE, s));
+  zoomToward(cx, cy, factor) {
+    const nextScale = this.clamp(this.targetScale * factor);
+    const ratio = nextScale / Math.max(0.0001, this.targetScale);
+    this.targetX = cx - (cx - this.targetX) * ratio;
+    this.targetY = cy - (cy - this.targetY) * ratio;
+    this.targetScale = nextScale;
+    if (this.onZoomChange) this.onZoomChange(nextScale);
   }
 
-  _getTouchDist(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.hypot(dx, dy);
+  getScale() {
+    return this.scale;
   }
 
-  _wheelDeltaPx(e) {
-    if (e.deltaMode === 1) return e.deltaY * 16;
-    if (e.deltaMode === 2) return e.deltaY * this.viewport.clientHeight;
-    return e.deltaY;
+  getOffset() {
+    return { x: this.x, y: this.y };
+  }
+
+  loop() {
+    const tick = (ts) => {
+      const t = ts * 0.001;
+      if (!this.dragging) {
+        this.targetX += this.vx;
+        this.targetY += this.vy;
+        this.vx *= this.friction;
+        this.vy *= this.friction;
+      }
+      this.floatX = Math.cos(t * 0.09) * 3.4;
+      this.floatY = Math.sin(t * 0.07) * 2.2;
+      this.x += (this.targetX + this.floatX - this.x) * 0.08;
+      this.y += (this.targetY + this.floatY - this.y) * 0.08;
+      this.scale += (this.targetScale - this.scale) * 0.1;
+      this.world.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+      this.raf = requestAnimationFrame(tick);
+    };
+
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  clamp(value) {
+    return Math.max(this.minScale, Math.min(this.maxScale, value));
   }
 }
