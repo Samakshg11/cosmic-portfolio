@@ -3,88 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Cosmic Portfolio - an infinite zoom portfolio drifting through a living universe.">
-  <title>Cosmic Portfolio - Infinite Zoom</title>
+  <meta name="description" content="Cosmic Portfolio - a realistic infinite-zoom portfolio set inside a calm cinematic space field.">
+  <title>Cosmic Portfolio - Immersive Space</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-  <div id="intro">
-    <div class="intro-stars"></div>
-    <div class="intro-core"></div>
-    <div class="intro-copy">
-      <span class="intro-kicker">Infinite Zoom Portfolio</span>
-      <h1>Cosmic Portfolio</h1>
-      <p>Scroll to descend through orbit, atmosphere, and surface. Drag to drift through the system. Every section reveals itself only through depth.</p>
-      <span class="intro-hint">Scroll to enter the universe</span>
-    </div>
-  </div>
-
+  <div id="sun-glow" aria-hidden="true"></div>
   <canvas id="starfield"></canvas>
 
   <div id="viewport">
     <div id="world"></div>
   </div>
 
-  <div id="hud" aria-live="polite">
+  <header id="hud" aria-live="polite">
     <div class="hud-block">
-      <span class="hud-label">Current Signal</span>
-      <strong id="focus-readout">Drift through the inner orbit</strong>
+      <span class="hud-label">Current World</span>
+      <strong id="focus-readout">AETHER - Identity Signal</strong>
     </div>
-    <div class="hud-block hud-block-right">
-      <span class="hud-label">Zoom Depth</span>
-      <strong id="zoom-readout">38%</strong>
+    <div class="hud-block hud-right">
+      <span class="hud-label">Depth</span>
+      <strong id="zoom-readout">230%</strong>
     </div>
-  </div>
+  </header>
 
-  <div id="proximity-hint">Scroll to explore. Drag to reframe space.</div>
-  <div id="depth-ladder" aria-hidden="true">
-    <span>Object</span>
-    <span>Name</span>
-    <span>Orbit</span>
-    <span>Surface</span>
-    <span>Deep</span>
-  </div>
-
-  <div id="minimap" aria-label="System orientation"></div>
+  <div id="world-hint">Scroll to move through depth. Drag to drift between worlds.</div>
+  <div id="minimap" aria-label="Spatial orientation"></div>
   <div id="warp-overlay"></div>
 
   <script type="module">
-    import { PLANETS, BLACK_HOLE, INTRO_COPY } from './components/planets-data.js';
+    import { PLANETS, BLACK_HOLE, WORLD_CONFIG } from './components/planets-data.js';
 
     class Starfield {
       constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d', { alpha: false });
-        const mob = window.innerWidth < 700;
-        this.staticCount = mob ? 240 : 420;
-        this.twinkleCount = mob ? 18 : 34;
-        this.layers = mob ? [44, 28, 18] : [90, 58, 34];
         this.offscreen = document.createElement('canvas');
         this.offCtx = this.offscreen.getContext('2d', { alpha: false });
-        this.shooters = [];
-        this.nextShooterAt = 0;
-        this.prevTs = 0;
-        this.tint = 0;
-        this.running = false;
+        this.parallaxX = 0;
+        this.parallaxY = 0;
+        this.warp = 0;
         this.raf = null;
+        this.prevTs = 0;
         this.init();
       }
       init() {
         this.resize();
         this.build();
-        this.renderOffscreen();
-        this.startLoop();
+        this.renderBase();
+        this.loop();
         window.addEventListener('resize', () => {
           this.resize();
           this.build();
-          this.renderOffscreen();
+          this.renderBase();
         }, { passive: true });
-      }
-      setWarpTint(amount) {
-        this.tint += (amount - this.tint) * 0.08;
       }
       resize() {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -101,45 +75,43 @@
         this.offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       build() {
-        const { w, h } = this;
-        this.staticBuf = new Float32Array(this.staticCount * 4);
-        for (let i = 0; i < this.staticCount; i++) {
-          const b = i * 4;
-          this.staticBuf[b] = Math.random() * w;
-          this.staticBuf[b + 1] = Math.random() * h;
-          this.staticBuf[b + 2] = Math.random() * 1.4 + 0.25;
-          this.staticBuf[b + 3] = Math.random() * 0.55 + 0.22;
-        }
-        this.twinklers = Array.from({ length: this.twinkleCount }, () => ({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          r: Math.random() * 1.8 + 0.5,
-          phase: Math.random() * Math.PI * 2,
-          speed: Math.random() * 0.7 + 0.45,
-        }));
-        const maxOrbit = Math.hypot(w, h) * 0.72;
-        this.galaxyLayers = this.layers.map((count, li) => Array.from({ length: count }, () => ({
-          orbit: Math.pow(Math.random(), 0.78) * maxOrbit,
-          angle: Math.random() * Math.PI * 2,
-          vel: (Math.random() * 0.35 + 0.65) * (0.1 - li * 0.02),
-          flatten: 0.58 + Math.random() * 0.22,
-          size: Math.random() * (0.45 + li * 0.18) + 0.25,
-          alpha: Math.random() * 0.6 + 0.2,
-          pulse: Math.random() * Math.PI * 2,
-          warm: Math.random() < 0.2,
-        })));
-        this.shooters.length = 0;
-        this.nextShooterAt = performance.now() + Math.random() * 4000 + 2800;
+        const nearCount = window.innerWidth < 760 ? 40 : 70;
+        const midCount = window.innerWidth < 760 ? 90 : 160;
+        const farCount = window.innerWidth < 760 ? 180 : 260;
+        this.layers = [
+          this.makeLayer(nearCount, 0.018, 1.5, 0.55),
+          this.makeLayer(midCount, 0.01, 1.05, 0.34),
+          this.makeLayer(farCount, 0.004, 0.75, 0.2),
+        ];
       }
-      renderOffscreen() {
+      makeLayer(count, driftScale, maxSize, alphaBase) {
+        return Array.from({ length: count }, () => ({
+          x: Math.random() * this.w,
+          y: Math.random() * this.h,
+          r: Math.random() * maxSize + 0.2,
+          alpha: Math.random() * alphaBase + alphaBase * 0.25,
+          driftScale,
+          warm: Math.random() < 0.08,
+          pulse: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.65 + 0.35,
+        }));
+      }
+      setParallax(x, y) {
+        this.parallaxX = x;
+        this.parallaxY = y;
+      }
+      setWarp(amount) {
+        this.warp = amount;
+      }
+      renderBase() {
         const ctx = this.offCtx;
         ctx.clearRect(0, 0, this.w, this.h);
-        ctx.fillStyle = '#02040b';
+        ctx.fillStyle = '#02040a';
         ctx.fillRect(0, 0, this.w, this.h);
         [
-          [this.w * 0.18, this.h * 0.22, this.w * 0.28, 'rgba(48,64,160,0.16)'],
-          [this.w * 0.78, this.h * 0.68, this.w * 0.25, 'rgba(12,116,148,0.11)'],
-          [this.w * 0.52, this.h * 0.48, this.w * 0.33, 'rgba(82,20,110,0.12)'],
+          [this.w * 0.18, this.h * 0.22, this.w * 0.3, 'rgba(20,34,78,0.10)'],
+          [this.w * 0.78, this.h * 0.66, this.w * 0.24, 'rgba(9,18,42,0.10)'],
+          [this.w * 0.52, this.h * 0.5, this.w * 0.36, 'rgba(30,18,50,0.06)'],
         ].forEach(([x, y, r, color]) => {
           const g = ctx.createRadialGradient(x, y, 0, x, y, r);
           g.addColorStop(0, color);
@@ -147,90 +119,31 @@
           ctx.fillStyle = g;
           ctx.fillRect(0, 0, this.w, this.h);
         });
-        for (let i = 0; i < this.staticCount; i++) {
-          const b = i * 4;
-          ctx.beginPath();
-          ctx.arc(this.staticBuf[b], this.staticBuf[b + 1], this.staticBuf[b + 2], 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(220,230,255,${this.staticBuf[b + 3].toFixed(2)})`;
-          ctx.fill();
-        }
       }
-      spawnShooter(now) {
-        this.shooters.push({
-          x: Math.random() * this.w * 0.5,
-          y: Math.random() * this.h * 0.5,
-          vx: Math.random() * 540 + 780,
-          vy: Math.random() * 160 + 120,
-          ttl: Math.random() * 0.55 + 0.45,
-          len: Math.random() * 80 + 50,
-          life: 0,
-        });
-        this.nextShooterAt = now + Math.random() * 5000 + 3500;
-      }
-      startLoop() {
-        this.running = true;
+      loop() {
         const tick = (ts) => {
-          if (!this.running) return;
           const t = ts * 0.001;
           const dt = this.prevTs ? Math.min(0.05, (ts - this.prevTs) * 0.001) : 0.016;
           this.prevTs = ts;
           this.ctx.drawImage(this.offscreen, 0, 0, this.w, this.h);
-          const tintAlpha = this.tint * 0.42;
-          if (tintAlpha > 0.002) {
-            this.ctx.fillStyle = `rgba(130,170,255,${tintAlpha.toFixed(3)})`;
+          const lensAlpha = this.warp * 0.18;
+          if (lensAlpha > 0.001) {
+            this.ctx.fillStyle = `rgba(116,154,220,${lensAlpha.toFixed(3)})`;
             this.ctx.fillRect(0, 0, this.w, this.h);
           }
-          const cx = this.w * 0.5 + Math.cos(t * 0.06) * this.w * 0.016;
-          const cy = this.h * 0.5 + Math.sin(t * 0.05) * this.h * 0.012;
-          for (const layer of this.galaxyLayers) {
-            for (const star of layer) {
-              star.angle += star.vel * dt;
-              const orbit = star.orbit + Math.sin(t * 0.45 + star.pulse) * 10;
-              const x = cx + Math.cos(star.angle) * orbit;
-              const y = cy + Math.sin(star.angle) * orbit * star.flatten;
-              const alpha = star.alpha * (0.7 + 0.3 * Math.sin(t * 0.9 + star.pulse));
+          this.layers.forEach((layer, layerIndex) => {
+            layer.forEach((star) => {
+              const px = star.x - this.parallaxX * star.driftScale + Math.sin(t * star.speed + star.pulse) * 0.25 * (layerIndex + 1);
+              const py = star.y - this.parallaxY * star.driftScale + Math.cos(t * (star.speed * 0.75) + star.pulse) * 0.18 * (layerIndex + 1);
+              const alpha = star.alpha * (0.72 + 0.28 * Math.sin(t * star.speed + star.pulse));
               this.ctx.beginPath();
-              this.ctx.arc(x, y, star.size, 0, Math.PI * 2);
+              this.ctx.arc(px, py, star.r, 0, Math.PI * 2);
               this.ctx.fillStyle = star.warm
-                ? `rgba(255,230,198,${alpha.toFixed(3)})`
-                : `rgba(208,226,255,${alpha.toFixed(3)})`;
+                ? `rgba(230,224,214,${alpha.toFixed(3)})`
+                : `rgba(210,220,235,${alpha.toFixed(3)})`;
               this.ctx.fill();
-            }
-          }
-          for (const s of this.twinklers) {
-            const alpha = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin(t * s.speed * 4 + s.phase));
-            this.ctx.beginPath();
-            this.ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-            this.ctx.fillStyle = `rgba(210,220,255,${alpha.toFixed(2)})`;
-            this.ctx.fill();
-          }
-          if (ts > this.nextShooterAt && this.shooters.length < 3) this.spawnShooter(ts);
-          if (this.shooters.length) {
-            const keep = [];
-            for (const sh of this.shooters) {
-              sh.life += dt;
-              sh.x += sh.vx * dt;
-              sh.y += sh.vy * dt;
-              if (sh.life < sh.ttl && sh.x < this.w + sh.len && sh.y < this.h + sh.len) {
-                const p = sh.life / sh.ttl;
-                const alpha = (1 - p) * 0.52;
-                const tx = sh.x - sh.len * 0.92;
-                const ty = sh.y - sh.len * 0.34;
-                const g = this.ctx.createLinearGradient(sh.x, sh.y, tx, ty);
-                g.addColorStop(0, `rgba(255,245,214,${alpha.toFixed(3)})`);
-                g.addColorStop(1, 'rgba(255,245,214,0)');
-                this.ctx.lineWidth = 1.5;
-                this.ctx.strokeStyle = g;
-                this.ctx.beginPath();
-                this.ctx.moveTo(sh.x, sh.y);
-                this.ctx.lineTo(tx, ty);
-                this.ctx.stroke();
-                keep.push(sh);
-              }
-            }
-            this.shooters = keep;
-          }
-          this.tint += (0 - this.tint) * 0.015;
+            });
+          });
           this.raf = requestAnimationFrame(tick);
         };
         this.raf = requestAnimationFrame(tick);
@@ -243,69 +156,27 @@
         this.viewport = viewportEl;
         this.x = 0;
         this.y = 0;
-        this.scale = 0.38;
+        this.scale = 2.25;
         this.targetX = 0;
         this.targetY = 0;
-        this.targetScale = 0.38;
-        this.minScale = 0.18;
-        this.maxScale = 22;
+        this.targetScale = 2.25;
+        this.minScale = 0.3;
+        this.maxScale = 14;
         this.zoomBoost = 1;
         this.vx = 0;
         this.vy = 0;
-        this.friction = 0.9;
-        this.wheelSensitivity = 0.0015;
         this.dragging = false;
         this.lastX = 0;
         this.lastY = 0;
         this.pinchDist = 0;
-        this.running = false;
+        this.friction = 0.92;
+        this.wheelSensitivity = 0.0011;
+        this.floatX = 0;
+        this.floatY = 0;
         this.raf = null;
         this.onZoomChange = null;
         this.bindEvents();
-        this.startLoop();
-      }
-      setZoomBoost(boost) {
-        this.zoomBoost = boost;
-      }
-      reset() {
-        this.targetX = 0;
-        this.targetY = 0;
-        this.targetScale = 0.38;
-      }
-      getScale() {
-        return this.scale;
-      }
-      getOffset() {
-        return { x: this.x, y: this.y };
-      }
-      zoomToward(cx, cy, factor) {
-        const nextScale = this.clamp(this.targetScale * factor);
-        const ratio = nextScale / Math.max(0.0001, this.targetScale);
-        this.targetX = cx - (cx - this.targetX) * ratio;
-        this.targetY = cy - (cy - this.targetY) * ratio;
-        this.targetScale = nextScale;
-        if (this.onZoomChange) this.onZoomChange(nextScale);
-      }
-      startLoop() {
-        this.running = true;
-        const tick = (ts) => {
-          if (!this.running) return;
-          const t = ts * 0.001;
-          if (!this.dragging) {
-            this.targetX += this.vx;
-            this.targetY += this.vy;
-            this.vx *= this.friction;
-            this.vy *= this.friction;
-          }
-          const driftX = Math.cos(t * 0.19) * 0.9;
-          const driftY = Math.sin(t * 0.14) * 0.8;
-          this.x += (this.targetX + driftX - this.x) * 0.09;
-          this.y += (this.targetY + driftY - this.y) * 0.09;
-          this.scale += (this.targetScale - this.scale) * 0.11;
-          this.world.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
-          this.raf = requestAnimationFrame(tick);
-        };
-        this.raf = requestAnimationFrame(tick);
+        this.loop();
       }
       bindEvents() {
         const vp = this.viewport;
@@ -378,6 +249,7 @@
         };
         this.onTouchEnd = () => {
           this.dragging = false;
+          vp.classList.remove('grabbing');
         };
         vp.addEventListener('mousedown', this.onMouseDown, { passive: true });
         window.addEventListener('mousemove', this.onMouseMove, { passive: true });
@@ -386,6 +258,50 @@
         vp.addEventListener('touchstart', this.onTouchStart, { passive: true });
         vp.addEventListener('touchmove', this.onTouchMove, { passive: false });
         vp.addEventListener('touchend', this.onTouchEnd, { passive: true });
+      }
+      setZoomBoost(boost) {
+        this.zoomBoost = boost;
+      }
+      setView(x, y, scale) {
+        this.x = x;
+        this.y = y;
+        this.scale = scale;
+        this.targetX = x;
+        this.targetY = y;
+        this.targetScale = scale;
+      }
+      zoomToward(cx, cy, factor) {
+        const nextScale = this.clamp(this.targetScale * factor);
+        const ratio = nextScale / Math.max(0.0001, this.targetScale);
+        this.targetX = cx - (cx - this.targetX) * ratio;
+        this.targetY = cy - (cy - this.targetY) * ratio;
+        this.targetScale = nextScale;
+        if (this.onZoomChange) this.onZoomChange(nextScale);
+      }
+      getScale() {
+        return this.scale;
+      }
+      getOffset() {
+        return { x: this.x, y: this.y };
+      }
+      loop() {
+        const tick = (ts) => {
+          const t = ts * 0.001;
+          if (!this.dragging) {
+            this.targetX += this.vx;
+            this.targetY += this.vy;
+            this.vx *= this.friction;
+            this.vy *= this.friction;
+          }
+          this.floatX = Math.cos(t * 0.09) * 3.4;
+          this.floatY = Math.sin(t * 0.07) * 2.2;
+          this.x += (this.targetX + this.floatX - this.x) * 0.08;
+          this.y += (this.targetY + this.floatY - this.y) * 0.08;
+          this.scale += (this.targetScale - this.scale) * 0.1;
+          this.world.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+          this.raf = requestAnimationFrame(tick);
+        };
+        this.raf = requestAnimationFrame(tick);
       }
       clamp(value) {
         return Math.max(this.minScale, Math.min(this.maxScale, value));
@@ -398,36 +314,41 @@
         this.world = document.getElementById('world');
         this.focusReadout = document.getElementById('focus-readout');
         this.zoomReadout = document.getElementById('zoom-readout');
-        this.proximityHint = document.getElementById('proximity-hint');
+        this.hint = document.getElementById('world-hint');
         this.warp = document.getElementById('warp-overlay');
         this.minimap = document.getElementById('minimap');
         this.objects = [...PLANETS, BLACK_HOLE];
-        this.planetEls = [];
-        this.currentPositions = [];
-        this.startT = performance.now();
-        this.running = false;
-        this.raf = null;
+        this.items = [];
+        this.positions = [];
+        this.startTime = performance.now();
         this.currentFocus = null;
-        this.blackHoleDepth = 0;
+        this.currentBlackHoleDepth = 0;
+        this.initializedView = false;
+        this.activeVideoIds = new Set();
       }
       init() {
-        document.body.classList.add('app-ready');
-        this.sf = new Starfield(document.getElementById('starfield'));
-        this.vp = new ViewportEngine(this.world, this.viewport);
-        this.vp.onZoomChange = (scale) => {
+        this.starfield = new Starfield(document.getElementById('starfield'));
+        this.camera = new ViewportEngine(this.world, this.viewport);
+        this.camera.onZoomChange = (scale) => {
           this.zoomReadout.textContent = Math.round(scale * 100) + '%';
         };
         this.buildScene();
         this.buildMinimap();
         this.bindEvents();
-        this.running = true;
-        const tick = (ts) => {
-          if (!this.running) return;
+        const loop = (ts) => {
           this.updateScene(ts);
           this.updateMinimap();
-          this.raf = requestAnimationFrame(tick);
+          requestAnimationFrame(loop);
         };
-        this.raf = requestAnimationFrame(tick);
+        requestAnimationFrame(loop);
+      }
+      bindEvents() {
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'r' || e.key === 'R') {
+            const target = this.items.find((item) => item.data.id === WORLD_CONFIG.initialPlanetId);
+            if (target) this.setInitialView(target);
+          }
+        }, { passive: true });
       }
       buildScene() {
         const radii = [...new Set(this.objects.map((obj) => obj.radius))].sort((a, b) => a - b);
@@ -435,49 +356,52 @@
           const ring = document.createElement('div');
           ring.className = 'orbit-ring';
           ring.style.width = `${radius * 2}px`;
-          ring.style.height = `${radius * 2 * 0.16}px`;
+          ring.style.height = `${radius * 2 * 0.14}px`;
           this.world.appendChild(ring);
         });
 
-        const core = document.createElement('div');
-        core.id = 'sun-wrapper';
-        core.innerHTML = '<div id="sun"></div><div id="sun-aura"></div>';
-        this.world.appendChild(core);
+        const sun = document.createElement('div');
+        sun.id = 'sun-source';
+        sun.innerHTML = '<div class="sun-disc"></div><div class="sun-field"></div>';
+        this.world.appendChild(sun);
 
-        this.planetEls = this.objects.map((obj) => {
+        this.items = this.objects.map((obj) => {
           const wrap = document.createElement('article');
-          wrap.className = obj.id === BLACK_HOLE.id ? 'planet-wrapper black-hole-wrapper' : 'planet-wrapper';
+          wrap.className = obj.id === BLACK_HOLE.id ? 'space-object black-hole-object' : 'space-object';
           wrap.dataset.id = obj.id;
-          wrap.style.setProperty('--planet-color', obj.color);
+          wrap.style.setProperty('--planet-base', obj.albedo);
+          wrap.style.setProperty('--detail-color', obj.detailColor);
 
-          const body = document.createElement('div');
-          body.className = obj.id === BLACK_HOLE.id ? 'planet black-hole' : 'planet';
-          body.style.width = `${obj.size}px`;
-          body.style.height = `${obj.size}px`;
-          if (obj.id !== BLACK_HOLE.id) {
-            body.style.background = obj.gradient;
-            body.innerHTML = '<div class="planet-inner"></div><div class="planet-shine"></div>';
+          const planet = document.createElement('div');
+          planet.className = obj.id === BLACK_HOLE.id ? 'planet-shell black-hole-shell' : `planet-shell material-${obj.material}`;
+          planet.style.width = `${obj.size}px`;
+          planet.style.height = `${obj.size}px`;
+          if (obj.id === BLACK_HOLE.id) {
+            planet.innerHTML = '<div class="lensing-ring"></div><div class="singularity-core"></div><div class="lensing-halo"></div>';
           } else {
-            body.innerHTML = '<div class="event-ring"></div><div class="event-core"></div><div class="event-lens"></div>';
+            planet.innerHTML = '<div class="surface-noise"></div><div class="surface-shadow"></div>';
           }
 
           const label = document.createElement('div');
-          label.className = 'object-label';
-          label.innerHTML = `<span class="object-name">${obj.name}</span><span class="object-subtitle">${obj.subtitle}</span>`;
+          label.className = 'planet-label';
+          label.innerHTML = `<span class="planet-name">${obj.name}</span><span class="planet-subtitle">${obj.subtitle}</span>`;
 
           const shell = document.createElement('div');
           shell.className = 'content-shell';
           shell.innerHTML = `
-            <div class="zoom-level zoom-level-2">
-              <div class="level-title">${obj.name}</div>
-              <p>${obj.prompt}</p>
+            <div class="zoom-layer zoom-layer-2">
+              <div class="content-card intro-card">
+                <span class="content-eyebrow">Approach</span>
+                <h3>${obj.name}</h3>
+                <p>${obj.prompt}</p>
+              </div>
             </div>
-            <div class="zoom-level zoom-level-3">${obj.preview()}</div>
-            <div class="zoom-level zoom-level-4"></div>
-            <div class="zoom-level zoom-level-5"></div>
+            <div class="zoom-layer zoom-layer-3">${obj.preview()}</div>
+            <div class="zoom-layer zoom-layer-4"></div>
+            <div class="zoom-layer zoom-layer-5"></div>
           `;
 
-          wrap.appendChild(body);
+          wrap.appendChild(planet);
           wrap.appendChild(label);
           wrap.appendChild(shell);
           this.world.appendChild(wrap);
@@ -485,13 +409,15 @@
           return {
             data: obj,
             el: wrap,
-            body,
-            label,
+            planet,
             shell,
-            surfaceEl: shell.querySelector('.zoom-level-4'),
-            deepEl: shell.querySelector('.zoom-level-5'),
+            surfaceEl: shell.querySelector('.zoom-layer-4'),
+            deepEl: shell.querySelector('.zoom-layer-5'),
             surfaceLoaded: false,
             deepLoaded: false,
+            videoLoaded: false,
+            videoPlaying: false,
+            videoEl: null,
             localDepth: 0,
             screenX: 0,
             screenY: 0,
@@ -508,106 +434,137 @@
         this.mmCanvas = canvas;
         this.mmCtx = canvas.getContext('2d');
       }
-      bindEvents() {
-        let booted = false;
-        const boot = () => {
-          if (booted) return;
-          booted = true;
-          const intro = document.getElementById('intro');
-          intro.classList.add('hidden');
-          setTimeout(() => intro.remove(), 1200);
-        };
-        window.addEventListener('wheel', boot, { once: true, passive: true });
-        window.addEventListener('keydown', boot, { once: true, passive: true });
-        window.addEventListener('pointerdown', boot, { once: true, passive: true });
-        window.addEventListener('keydown', (e) => {
-          if (e.key === 'r' || e.key === 'R') this.vp.reset();
-        }, { passive: true });
+      ensureVideo(item) {
+        if (item.videoLoaded) return;
+        const stage = document.createElement('div');
+        stage.className = 'video-stage';
+        stage.innerHTML = `
+          <div class="video-frame">
+            <video muted playsinline loop preload="none" poster="${item.data.video.poster}"></video>
+            <div class="video-overlay"></div>
+          </div>
+        `;
+        item.surfaceEl.prepend(stage);
+        item.videoEl = stage.querySelector('video');
+        item.videoEl.src = item.data.video.src;
+        item.videoLoaded = true;
+      }
+      updateVideo(item, shouldPlay) {
+        if (!item.data.video) return;
+        if (shouldPlay) {
+          this.ensureVideo(item);
+          if (!item.videoPlaying) {
+            item.videoEl.play().catch(() => {});
+            item.videoPlaying = true;
+          }
+          item.el.classList.add('video-active');
+        } else if (item.videoLoaded && item.videoPlaying) {
+          item.videoEl.pause();
+          item.videoPlaying = false;
+          item.el.classList.remove('video-active');
+        } else {
+          item.el.classList.remove('video-active');
+        }
+      }
+      setInitialView(item) {
+        const pos = this.positions.find((entry) => entry.id === item.data.id);
+        if (!pos) return;
+        const scale = 2.35;
+        const targetX = window.innerWidth * 0.68 - pos.x * scale;
+        const targetY = window.innerHeight * 0.56 - pos.y * scale;
+        this.camera.setView(targetX - window.innerWidth * 0.5, targetY - window.innerHeight * 0.5, scale);
+        this.initializedView = true;
       }
       updateScene(ts) {
-        const t = (ts - this.startT) * 0.001 * 0.42;
-        const positions = [];
+        const t = (ts - this.startTime) * 0.00014;
         const centerX = window.innerWidth * 0.5;
         const centerY = window.innerHeight * 0.5;
-        let best = null;
-        let bestScore = -1;
-        let holeDepth = 0;
+        let focus = null;
+        let focusScore = -1;
+        let blackHoleDepth = 0;
+        this.positions = [];
 
-        for (const item of this.planetEls) {
-          const p = item.data;
-          const angle = t * p.speed + p.phase;
-          const x = Math.cos(angle) * p.radius;
-          const y = Math.sin(angle) * p.radius * p.tilt;
-          const depth = y / Math.max(1, p.radius * p.tilt);
-          const orbitScale = 0.9 + (depth + 1) * 0.13;
+        for (const item of this.items) {
+          const obj = item.data;
+          const angle = t * obj.speed * 60 + obj.phase;
+          const x = Math.cos(angle) * obj.radius;
+          const y = Math.sin(angle) * obj.radius * obj.tilt;
+          const depth = y / Math.max(1, obj.radius * obj.tilt);
+          const orbitScale = 0.84 + (depth + 1) * 0.19;
+          const blur = Math.max(0, (1 - (depth + 1) * 0.5) * 0.9);
           item.el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${orbitScale.toFixed(3)})`;
           item.el.style.zIndex = `${Math.round(2000 + depth * 1200)}`;
+          item.el.style.filter = `blur(${blur.toFixed(2)}px)`;
 
-          const apparent = p.size * this.vp.getScale() * orbitScale;
-          const sx = centerX + this.vp.x + x * this.vp.getScale();
-          const sy = centerY + this.vp.y + y * this.vp.getScale();
-          item.screenX = sx;
-          item.screenY = sy;
-          const dist = Math.hypot(sx - centerX, sy - centerY);
-          const proximity = this.smoothstep(1, 0, dist / (Math.min(window.innerWidth, window.innerHeight) * 0.52));
-          const localDepth = (apparent / 22) * (0.35 + proximity * 0.65);
+          const apparent = obj.size * this.camera.getScale() * orbitScale;
+          const screenX = centerX + this.camera.x + x * this.camera.getScale();
+          const screenY = centerY + this.camera.y + y * this.camera.getScale();
+          item.screenX = screenX;
+          item.screenY = screenY;
+          const dist = Math.hypot(screenX - centerX, screenY - centerY);
+          const proximity = this.smoothstep(1, 0, dist / (Math.min(window.innerWidth, window.innerHeight) * 0.7));
+          const localDepth = (apparent / 50) * (0.45 + proximity * 0.55);
           item.localDepth = localDepth;
-          item.el.style.setProperty('--reveal-2', this.smoothstep(0.55, 1.05, localDepth).toFixed(3));
-          item.el.style.setProperty('--reveal-3', this.smoothstep(0.95, 1.8, localDepth).toFixed(3));
-          item.el.style.setProperty('--reveal-4', this.smoothstep(1.9, 3.6, localDepth).toFixed(3));
-          item.el.style.setProperty('--reveal-5', this.smoothstep(4.2, 7.4, localDepth).toFixed(3));
-          item.el.style.setProperty('--shell-scale', (1 + this.smoothstep(1.2, 7.5, localDepth) * 0.18).toFixed(3));
-          item.el.style.setProperty('--planet-glow', `${(0.18 + localDepth * 0.05).toFixed(3)}`);
 
-          if (localDepth > 2.2 && !item.surfaceLoaded) {
-            item.surfaceEl.innerHTML = p.surface();
+          item.el.style.setProperty('--reveal-2', this.smoothstep(0.75, 1.25, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-3', this.smoothstep(1.2, 2.0, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-4', this.smoothstep(2.2, 3.8, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-5', this.smoothstep(4.2, 6.6, localDepth).toFixed(3));
+          item.el.style.setProperty('--shell-scale', (0.96 + this.smoothstep(1.1, 6.4, localDepth) * 0.1).toFixed(3));
+          item.el.style.setProperty('--planet-shadow', (0.48 - depth * 0.08).toFixed(3));
+          item.el.style.setProperty('--planet-light', (0.24 + (depth + 1) * 0.08).toFixed(3));
+
+          if (localDepth > 2.4 && !item.surfaceLoaded) {
+            item.surfaceEl.innerHTML += obj.surface();
             item.surfaceLoaded = true;
           }
-          if (localDepth > 4.8 && !item.deepLoaded) {
-            item.deepEl.innerHTML = p.deep();
+          if (localDepth > 4.6 && !item.deepLoaded) {
+            item.deepEl.innerHTML = obj.deep();
             item.deepLoaded = true;
           }
 
-          const score = localDepth * (0.55 + proximity * 0.45);
-          if (score > bestScore) {
-            bestScore = score;
-            best = item;
+          const shouldPlayVideo = localDepth > 2.8 && proximity > 0.42;
+          this.updateVideo(item, shouldPlayVideo);
+
+          const score = localDepth * (0.4 + proximity * 0.6);
+          if (score > focusScore) {
+            focusScore = score;
+            focus = item;
           }
-          if (p.id === BLACK_HOLE.id) holeDepth = localDepth;
-          positions.push({ id: p.id, x, y, color: p.color });
+          if (obj.id === BLACK_HOLE.id) blackHoleDepth = localDepth;
+          this.positions.push({ id: obj.id, x, y, color: obj.albedo });
         }
 
-        this.currentPositions = positions;
-        this.currentFocus = best;
-        this.blackHoleDepth = holeDepth;
-        this.vp.setZoomBoost(1 + this.smoothstep(1.4, 4.8, holeDepth) * 1.65);
-        this.sf.setWarpTint(this.smoothstep(1.2, 6.2, holeDepth));
-        this.warp.style.opacity = this.smoothstep(1.3, 6.6, holeDepth).toFixed(3);
-        document.body.classList.toggle('singularity-active', holeDepth > 4.8);
-        this.updateReadout(best, holeDepth);
+        if (!this.initializedView) {
+          const startItem = this.items.find((item) => item.data.id === WORLD_CONFIG.initialPlanetId) || this.items[0];
+          this.setInitialView(startItem);
+        }
+
+        this.currentFocus = focus;
+        this.currentBlackHoleDepth = blackHoleDepth;
+        this.camera.setZoomBoost(1 + this.smoothstep(1.2, 4.8, blackHoleDepth) * 1.4);
+        this.warp.style.opacity = this.smoothstep(1.4, 6.0, blackHoleDepth).toFixed(3);
+        this.starfield.setWarp(this.smoothstep(1.6, 6.2, blackHoleDepth));
+        this.starfield.setParallax(this.camera.x, this.camera.y);
+        this.updateReadout(focus, blackHoleDepth);
       }
-      updateReadout(best, holeDepth) {
-        if (!best || best.localDepth < 0.5) {
-          this.focusReadout.textContent = 'Drift through the inner orbit';
-          this.proximityHint.textContent = 'Scroll to explore. Drag to reframe space.';
+      updateReadout(focus, blackHoleDepth) {
+        if (!focus) return;
+        this.focusReadout.textContent = `${focus.data.name} - ${focus.data.subtitle}`;
+        if (focus.data.id === BLACK_HOLE.id && blackHoleDepth > 2.2) {
+          this.hint.textContent = blackHoleDepth > 5
+            ? 'The archive is collapsing inward. Keep drifting if you want the deepest process notes.'
+            : 'Space is bending around the singularity. Scroll carefully through the lensing ring.';
           return;
         }
-        const label = `${best.data.name} - ${best.data.subtitle}`;
-        this.focusReadout.textContent = label;
-        if (best.data.id === BLACK_HOLE.id && holeDepth > 2) {
-          this.proximityHint.textContent = holeDepth > 5
-            ? 'The archive is open. Keep descending for raw process and prototypes.'
-            : 'Space is bending. Scroll deeper to cross the event horizon.';
-          return;
-        }
-        if (best.localDepth < 1) {
-          this.proximityHint.textContent = 'Object acquired. Keep zooming to resolve the name.';
-        } else if (best.localDepth < 2) {
-          this.proximityHint.textContent = `${best.data.name} is resolving. Keep descending toward orbit.`;
-        } else if (best.localDepth < 4) {
-          this.proximityHint.textContent = `${best.data.name} surface previews are visible. Stay centered and keep zooming.`;
+        if (focus.localDepth < 1.1) {
+          this.hint.textContent = WORLD_CONFIG.hint;
+        } else if (focus.localDepth < 2.2) {
+          this.hint.textContent = `${focus.data.name} is resolving out of the dark. Stay near it and keep moving forward.`;
+        } else if (focus.localDepth < 4.4) {
+          this.hint.textContent = `${focus.data.name} surface layer active. Content and video will deepen as you keep approaching.`;
         } else {
-          this.proximityHint.textContent = `${best.data.name} deep layer active. Zoom out to drift elsewhere.`;
+          this.hint.textContent = `${focus.data.name} deep layer active. Zoom back out to re-enter the wider system.`;
         }
       }
       updateMinimap() {
@@ -616,38 +573,44 @@
         const H = 120;
         ctx.setTransform(2, 0, 0, 2, 0, 0);
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(4,6,14,0.82)';
+        ctx.fillStyle = 'rgba(5, 8, 16, 0.88)';
         ctx.fillRect(0, 0, W, H);
-        const worldR = 940;
-        const scale = Math.min(W, H) / (worldR * 2.4);
+        const worldRadius = 1260;
+        const scale = Math.min(W, H) / (worldRadius * 2.5);
         const cx = W / 2;
         const cy = H / 2;
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
         ctx.lineWidth = 0.5;
         this.objects.forEach((obj) => {
           ctx.beginPath();
-          ctx.ellipse(cx, cy, obj.radius * scale, obj.radius * scale * 0.16, 0, 0, Math.PI * 2);
+          ctx.ellipse(cx, cy, obj.radius * scale, obj.radius * scale * 0.14, 0, 0, Math.PI * 2);
           ctx.stroke();
         });
-        ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffcc87';
-        ctx.fill();
-        this.currentPositions.forEach((pos) => {
+        this.positions.forEach((pos) => {
           ctx.beginPath();
-          ctx.arc(cx + pos.x * scale, cy + pos.y * scale * 0.16, pos.id === BLACK_HOLE.id ? 3.6 : 2.4, 0, Math.PI * 2);
-          ctx.fillStyle = pos.id === BLACK_HOLE.id ? '#85baff' : pos.color;
+          ctx.arc(cx + pos.x * scale, cy + pos.y * scale * 0.14, pos.id === BLACK_HOLE.id ? 3.6 : 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = pos.id === BLACK_HOLE.id ? '#9fb6d8' : pos.color;
           ctx.fill();
         });
-        const viewScale = this.vp.getScale();
-        const off = this.vp.getOffset();
-        const worldW = window.innerWidth / viewScale;
-        const worldH = window.innerHeight / viewScale;
-        const worldX = (-off.x) / viewScale;
-        const worldY = (-off.y) / viewScale;
-        ctx.strokeStyle = 'rgba(142,197,255,0.9)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 3.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#f2d5a0';
+        ctx.fill();
+
+        const cameraScale = this.camera.getScale();
+        const off = this.camera.getOffset();
+        const worldX = (-off.x) / cameraScale;
+        const worldY = (-off.y) / cameraScale;
+        const viewportW = window.innerWidth / cameraScale;
+        const viewportH = window.innerHeight / cameraScale;
+        ctx.strokeStyle = 'rgba(173, 191, 220, 0.84)';
         ctx.lineWidth = 0.8;
-        ctx.strokeRect(cx + (worldX - window.innerWidth * 0.5 / viewScale) * scale, cy + (worldY - window.innerHeight * 0.5 / viewScale) * scale * 0.16, worldW * scale, worldH * scale * 0.16);
+        ctx.strokeRect(
+          cx + (worldX - window.innerWidth * 0.5 / cameraScale) * scale,
+          cy + (worldY - window.innerHeight * 0.5 / cameraScale) * scale * 0.14,
+          viewportW * scale,
+          viewportH * scale * 0.14
+        );
       }
       smoothstep(min, max, value) {
         const x = Math.max(0, Math.min(1, (value - min) / Math.max(0.0001, max - min)));
@@ -655,13 +618,7 @@
       }
     }
 
-    document.querySelector('#intro .intro-kicker').textContent = INTRO_COPY.kicker;
-    document.querySelector('#intro h1').textContent = INTRO_COPY.title;
-    document.querySelector('#intro p').textContent = INTRO_COPY.description;
-    document.querySelector('#intro .intro-hint').textContent = INTRO_COPY.hint;
-
-    const app = new CosmicApp();
-    app.init();
+    new CosmicApp().init();
   </script>
 </body>
 </html>

@@ -1,17 +1,31 @@
 /**
- * Cosmic Portfolio data model for the infinite-zoom experience.
- * Content is split into preview, surface, and deep layers so we can
- * lazy-inject richer markup only when the camera reaches the threshold.
+ * Realistic infinite-zoom content model.
+ * Each world reveals orbit, surface, and deep layers as the camera
+ * physically approaches rather than opening a separate UI.
  */
 
 'use strict';
 
-export const INTRO_COPY = {
-  kicker: 'Infinite Zoom Portfolio',
+const VIDEO_LIBRARY = {
+  earthNight: {
+    src: 'https://cdn.pixabay.com/video/2015/08/07/2-135653517_large.mp4',
+    poster: 'https://cdn.pixabay.com/video/2015/08/07/2-135653517_tiny.jpg',
+  },
+  earthDay: {
+    src: 'https://cdn.pixabay.com/video/2016/02/10/2118-155244104_large.mp4',
+    poster: 'https://cdn.pixabay.com/video/2016/02/10/2118-155244104_tiny.jpg',
+  },
+  singularity: {
+    src: 'https://cdn.pixabay.com/video/2022/11/27/140733-775596128_large.mp4',
+    poster: 'https://cdn.pixabay.com/video/2022/11/27/140733-775596128_tiny.jpg',
+  },
+};
+
+export const WORLD_CONFIG = {
   title: 'Cosmic Portfolio',
-  description:
-    'Scroll to descend through orbit, atmosphere, and surface. Drag to drift across the system. Every story reveals itself only through depth.',
-  hint: 'Scroll to enter the universe',
+  subtitle: 'Inside the field',
+  hint: 'Scroll to move through depth. Drag to drift between worlds.',
+  initialPlanetId: 'about',
 };
 
 export const PLANETS = [
@@ -20,62 +34,54 @@ export const PLANETS = [
     name: 'AETHER',
     subtitle: 'Identity Signal',
     radius: 180,
-    size: 44,
-    speed: 1.0,
-    phase: 0.45,
-    tilt: 0.17,
-    color: '#8f86ff',
-    gradient: 'radial-gradient(circle at 32% 28%, #d4cfff 0%, #8f86ff 42%, #4534aa 76%, #140f31 100%)',
-    prompt: 'Keep descending to meet the builder behind the system.',
+    size: 132,
+    speed: 0.92,
+    phase: 0.46,
+    tilt: 0.21,
+    albedo: '#6f7b8f',
+    material: 'terrestrial-blue',
+    detailColor: '#c6d8eb',
+    prompt: 'A quiet terrestrial world carrying the builder behind the work.',
+    video: VIDEO_LIBRARY.earthNight,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card stat-card"><span class="stat-value">6+</span><span class="stat-label">years building</span></article>
-        <article class="zoom-card stat-card"><span class="stat-value">40+</span><span class="stat-label">launches shipped</span></article>
-      </div>
-      <p class="zoom-copy">Full-stack engineer turning systems thinking into cinematic products.</p>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Signal</span>
+        <h3>Full-stack engineer</h3>
+        <p>Designing cinematic interfaces and resilient systems.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Profile</span>
-        <h3>Hello, universe</h3>
-        <p>I am Alex Nova, a creative engineer focused on performance-heavy interfaces, spatial UX, and resilient backend systems. I like experiences that feel authored, not assembled.</p>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Profile</span>
+        <h3>Closer to the atmosphere</h3>
+        <p>I build interfaces that feel authored and physical, with the same care for latency, trust, and system resilience as I do for motion and tone.</p>
       </section>
-      <section class="content-block two-col">
+      <section class="content-panel-block two-col">
         <div>
-          <span class="content-kicker">Current Orbit</span>
-          <ul class="detail-list">
-            <li>Senior engineer shaping immersive product systems</li>
-            <li>Building with WebGL, realtime rendering, and edge infrastructure</li>
-            <li>Exploring interaction models that feel physical and story-led</li>
+          <span class="content-eyebrow">Current focus</span>
+          <ul class="content-list">
+            <li>Spatial product interfaces</li>
+            <li>Rendering-heavy frontend systems</li>
+            <li>Edge-aware architecture</li>
           </ul>
         </div>
         <div>
-          <span class="content-kicker">Operating Style</span>
-          <ul class="detail-list muted">
-            <li>Design-forward systems thinking</li>
-            <li>Fast prototyping with production rigor</li>
-            <li>Obsessive about motion, clarity, and performance</li>
+          <span class="content-eyebrow">Base of operations</span>
+          <ul class="content-list muted-list">
+            <li>San Francisco</li>
+            <li>Staff-level engineering</li>
+            <li>Design-forward technical direction</li>
           </ul>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Deep Signal</span>
-        <h3>How I work</h3>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Micro details</span>
         <div class="micro-grid">
-          <article class="micro-card">
-            <h4>Thought Process</h4>
-            <p>Begin with feeling first, then reduce everything to interaction primitives: motion, latency, hierarchy, trust.</p>
-          </article>
-          <article class="micro-card">
-            <h4>Stack Bias</h4>
-            <p>TypeScript, graphics APIs, distributed services, and tooling that keeps iteration fast under pressure.</p>
-          </article>
-          <article class="micro-card">
-            <h4>Favorite Problems</h4>
-            <p>Realtime collaboration, data-rich interfaces, product storytelling, and interaction systems with depth.</p>
-          </article>
+          <article class="micro-card"><h4>Thinking style</h4><p>Feeling first, systems second, details always.</p></article>
+          <article class="micro-card"><h4>Favorite work</h4><p>Interfaces where depth and clarity coexist.</p></article>
+          <article class="micro-card"><h4>Bias</h4><p>Fast prototypes, strong constraints, honest polish.</p></article>
         </div>
       </section>
     `,
@@ -84,53 +90,56 @@ export const PLANETS = [
     id: 'skills',
     name: 'FORGE',
     subtitle: 'Capability Matrix',
-    radius: 285,
-    size: 48,
-    speed: 0.78,
-    phase: 1.3,
-    tilt: 0.14,
-    color: '#63e6cb',
-    gradient: 'radial-gradient(circle at 35% 30%, #b6fff0 0%, #63e6cb 42%, #1b8e78 76%, #072821 100%)',
-    prompt: 'Zoom through the cloud deck to inspect the toolkit.',
+    radius: 330,
+    size: 114,
+    speed: 0.62,
+    phase: 1.42,
+    tilt: 0.18,
+    albedo: '#866e59',
+    material: 'rocky-umber',
+    detailColor: '#c8ab86',
+    prompt: 'A dry mineral planet etched with the tools used to build complex systems.',
+    video: VIDEO_LIBRARY.earthDay,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card"><span class="chip-title">Frontend</span><p>React, TypeScript, WebGL</p></article>
-        <article class="zoom-card"><span class="chip-title">Backend</span><p>Node, Rust, Go</p></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Toolkit</span>
+        <h3>Frontend to infra</h3>
+        <p>React, TypeScript, rendering, APIs, Rust, Go, cloud tooling.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Core Stack</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Core stack</span>
         <div class="skill-band">
-          ${['React','TypeScript','Next.js','Svelte','WebGL','Three.js','Node.js','Rust','Go','PostgreSQL','Redis','Terraform'].map((skill) => `<span class="skill-orb">${skill}</span>`).join('')}
+          ${['React','TypeScript','Next.js','WebGL','Three.js','Node.js','Rust','Go','PostgreSQL','Redis','Terraform','Docker'].map((skill) => `<span class="skill-pill">${skill}</span>`).join('')}
         </div>
       </section>
-      <section class="content-block two-col">
+      <section class="content-panel-block two-col">
         <div>
-          <span class="content-kicker">Strengths</span>
-          <ul class="detail-list">
-            <li>Motion systems and immersive frontends</li>
-            <li>Architecture for product scale and delivery speed</li>
-            <li>Design translation from concept to shipped interface</li>
+          <span class="content-eyebrow">Strengths</span>
+          <ul class="content-list">
+            <li>Expressive frontend systems</li>
+            <li>Architecture for scale and clarity</li>
+            <li>Bridging design and implementation</li>
           </ul>
         </div>
         <div>
-          <span class="content-kicker">Infra</span>
-          <ul class="detail-list muted">
-            <li>AWS, GCP, Vercel, Docker, CI pipelines</li>
-            <li>Observability and performance budgets</li>
-            <li>Pragmatic DevEx tooling</li>
+          <span class="content-eyebrow">Infrastructure</span>
+          <ul class="content-list muted-list">
+            <li>AWS and GCP</li>
+            <li>Observability and CI</li>
+            <li>Delivery-focused tooling</li>
           </ul>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Precision Layer</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Depth layer</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Animation</h4><p>Frame-stable transitions, motion language, scroll choreography, shader-friendly composition.</p></article>
-          <article class="micro-card"><h4>Systems</h4><p>Event-driven services, API design, edge runtimes, queue-based processing, data modeling.</p></article>
-          <article class="micro-card"><h4>Leadership</h4><p>Design reviews, technical direction, prototyping strategy, mentoring through ambiguity.</p></article>
+          <article class="micro-card"><h4>Motion</h4><p>Frame-stable animations and spatial transitions.</p></article>
+          <article class="micro-card"><h4>Systems</h4><p>Distributed thinking without losing product empathy.</p></article>
+          <article class="micro-card"><h4>Leadership</h4><p>Turning ambiguity into strong, buildable direction.</p></article>
         </div>
       </section>
     `,
@@ -139,38 +148,40 @@ export const PLANETS = [
     id: 'projects',
     name: 'ATLAS',
     subtitle: 'Mission Archive',
-    radius: 390,
-    size: 54,
-    speed: 0.56,
-    phase: 2.5,
-    tilt: 0.12,
-    color: '#ffd57f',
-    gradient: 'radial-gradient(circle at 30% 28%, #fff2c7 0%, #ffd57f 40%, #d68014 74%, #482100 100%)',
-    prompt: 'The closer you get, the more launches emerge from the haze.',
+    radius: 470,
+    size: 176,
+    speed: 0.34,
+    phase: 2.36,
+    tilt: 0.14,
+    albedo: '#b4996f',
+    material: 'gas-giant',
+    detailColor: '#e4d3b5',
+    prompt: 'A massive gas world holding the heaviest launches in the archive.',
+    video: VIDEO_LIBRARY.earthDay,
     preview: () => `
-      <div class="zoom-card-grid">
-        <article class="zoom-card"><span class="chip-title">VoidDB</span><p>Rust distributed store</p></article>
-        <article class="zoom-card"><span class="chip-title">Lumina UI</span><p>GPU-first component system</p></article>
-        <article class="zoom-card"><span class="chip-title">EdgeStream</span><p>Realtime edge video pipeline</p></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Archive</span>
+        <h3>Major launches</h3>
+        <p>Distributed systems, GPU-first UI, edge video, collaboration tooling.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Featured Missions</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Featured missions</span>
         <div class="stacked-cards">
-          <article class="zoom-card wide-card"><h4>VoidDB</h4><p>Distributed key-value engine in Rust with consensus-aware recovery and sustained high-throughput benchmarks.</p></article>
-          <article class="zoom-card wide-card"><h4>Lumina UI</h4><p>Open-source design system pairing GPU-accelerated visuals with pragmatic product ergonomics.</p></article>
-          <article class="zoom-card wide-card"><h4>EdgeStream</h4><p>Realtime ingest and transcoding platform that cut delivery cost while improving playback latency.</p></article>
+          <article class="content-card wide-card"><h4>VoidDB</h4><p>Rust-based distributed store designed around operational confidence and throughput.</p></article>
+          <article class="content-card wide-card"><h4>Lumina UI</h4><p>GPU-aware design system for expressive product interfaces.</p></article>
+          <article class="content-card wide-card"><h4>EdgeStream</h4><p>Realtime ingest pipeline reducing cost while improving latency.</p></article>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Case Study Layer</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Case study signals</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Problem Framing</h4><p>Each project began by modeling the bottleneck first: throughput, UX friction, or infra cost.</p></article>
-          <article class="micro-card"><h4>Build Method</h4><p>Prototype fast, instrument early, then narrow the surface area until the product feels inevitable.</p></article>
-          <article class="micro-card"><h4>Outcomes</h4><p>Improved latency, clearer product stories, and systems sturdy enough for real user load.</p></article>
+          <article class="micro-card"><h4>Problem framing</h4><p>Find the real bottleneck first.</p></article>
+          <article class="micro-card"><h4>Build style</h4><p>Prototype, instrument, tighten, refine.</p></article>
+          <article class="micro-card"><h4>Outcome</h4><p>Clearer stories with stronger systems underneath.</p></article>
         </div>
       </section>
     `,
@@ -179,38 +190,40 @@ export const PLANETS = [
     id: 'experience',
     name: 'KRONOS',
     subtitle: 'Timeline Orbit',
-    radius: 500,
-    size: 40,
-    speed: 0.42,
-    phase: 0.92,
-    tilt: 0.1,
-    color: '#ff8d8d',
-    gradient: 'radial-gradient(circle at 32% 28%, #ffd0d0 0%, #ff8d8d 42%, #b62727 76%, #330808 100%)',
-    prompt: 'Descend to read the trajectory line by line.',
+    radius: 620,
+    size: 102,
+    speed: 0.27,
+    phase: 0.94,
+    tilt: 0.12,
+    albedo: '#7f6253',
+    material: 'rocky-cratered',
+    detailColor: '#bda08f',
+    prompt: 'A weathered world with layered strata from each chapter of work.',
+    video: VIDEO_LIBRARY.earthNight,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card stat-card"><span class="stat-value">3</span><span class="stat-label">lead roles</span></article>
-        <article class="zoom-card stat-card"><span class="stat-value">8</span><span class="stat-label">years shipped</span></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Trajectory</span>
+        <h3>Staff and principal roles</h3>
+        <p>Multiple years leading product-critical systems and teams.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Timeline</span>
-        <div class="timeline-stream">
-          <article class="timeline-node"><span>2023-Present</span><h4>Senior Staff Engineer</h4><p>Nebula Labs</p></article>
-          <article class="timeline-node"><span>2021-2023</span><h4>Principal Engineer</h4><p>Vertex Systems</p></article>
-          <article class="timeline-node"><span>2019-2021</span><h4>Senior Full-Stack Engineer</h4><p>Quasar IO</p></article>
-          <article class="timeline-node"><span>2018-2019</span><h4>Software Engineer</h4><p>Polaris Tech</p></article>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Timeline</span>
+        <div class="timeline-band">
+          <article class="timeline-card"><span>2023-Present</span><h4>Senior Staff Engineer</h4><p>Nebula Labs</p></article>
+          <article class="timeline-card"><span>2021-2023</span><h4>Principal Engineer</h4><p>Vertex Systems</p></article>
+          <article class="timeline-card"><span>2019-2021</span><h4>Senior Full-Stack Engineer</h4><p>Quasar IO</p></article>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Leadership Layer</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Leadership layer</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Staffing</h4><p>Cross-team execution, system ownership, and architectural steering for product-critical work.</p></article>
-          <article class="micro-card"><h4>Delivery</h4><p>Protected build velocity by turning vague asks into scoped, shippable systems.</p></article>
-          <article class="micro-card"><h4>Mentorship</h4><p>Coached engineers through motion work, frontend architecture, and system design tradeoffs.</p></article>
+          <article class="micro-card"><h4>Execution</h4><p>Protected product velocity through strong architecture.</p></article>
+          <article class="micro-card"><h4>Direction</h4><p>Clarified tradeoffs before teams paid the cost.</p></article>
+          <article class="micro-card"><h4>Mentorship</h4><p>Raised confidence while raising standards.</p></article>
         </div>
       </section>
     `,
@@ -219,37 +232,40 @@ export const PLANETS = [
     id: 'opensource',
     name: 'NEXUS',
     subtitle: 'Open Source Relay',
-    radius: 350,
-    size: 32,
-    speed: 0.64,
-    phase: 4.2,
+    radius: 520,
+    size: 94,
+    speed: 0.41,
+    phase: 4.12,
     tilt: 0.16,
-    color: '#9cd8ff',
-    gradient: 'radial-gradient(circle at 32% 28%, #edf8ff 0%, #9cd8ff 42%, #2d8bd8 74%, #0a2a4f 100%)',
-    prompt: 'Public work resolves into view as you cross the relay field.',
+    albedo: '#7d8ea2',
+    material: 'ice-world',
+    detailColor: '#dce7ef',
+    prompt: 'A cold relay world broadcasting public experiments and reusable tools.',
+    video: VIDEO_LIBRARY.earthNight,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card stat-card"><span class="stat-value">12</span><span class="stat-label">public repos</span></article>
-        <article class="zoom-card stat-card"><span class="stat-value">1.2k+</span><span class="stat-label">commits</span></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Public signal</span>
+        <h3>12 repos, 1.2k+ commits</h3>
+        <p>Open work as a testing ground for stronger product systems.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Repositories</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Repositories</span>
         <div class="stacked-cards">
-          <article class="zoom-card wide-card"><h4>lumina-ui</h4><p>GPU-accelerated components focused on expressive product interfaces.</p></article>
-          <article class="zoom-card wide-card"><h4>voiddb</h4><p>Distributed KV store experiments around reliability, throughput, and consensus.</p></article>
-          <article class="zoom-card wide-card"><h4>edgeq</h4><p>Queue system tuned for edge-first compute and simplified deployment.</p></article>
+          <article class="content-card wide-card"><h4>lumina-ui</h4><p>GPU-accelerated components for expressive product interfaces.</p></article>
+          <article class="content-card wide-card"><h4>voiddb</h4><p>Consensus and throughput experiments in distributed storage.</p></article>
+          <article class="content-card wide-card"><h4>edgeq</h4><p>Queueing system shaped for edge-first compute.</p></article>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Why Open Source</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Why in public</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Testing Ground</h4><p>Where product ideas get pressure-tested in public.</p></article>
-          <article class="micro-card"><h4>Teaching Tool</h4><p>Readable code and thoughtful demos help others move faster.</p></article>
-          <article class="micro-card"><h4>Signal</h4><p>Shows how I think when no one is simplifying the problem for me.</p></article>
+          <article class="micro-card"><h4>Testing ground</h4><p>Where new ideas get real pressure.</p></article>
+          <article class="micro-card"><h4>Teaching</h4><p>Readable systems help others move faster.</p></article>
+          <article class="micro-card"><h4>Signal</h4><p>Shows how I think without simplification.</p></article>
         </div>
       </section>
     `,
@@ -258,37 +274,40 @@ export const PLANETS = [
     id: 'writing',
     name: 'LYRA',
     subtitle: 'Signal Essays',
-    radius: 560,
-    size: 30,
-    speed: 0.35,
-    phase: 3.32,
-    tilt: 0.09,
-    color: '#e6a5ff',
-    gradient: 'radial-gradient(circle at 32% 28%, #f8dfff 0%, #e6a5ff 42%, #8a2bb4 74%, #2b0534 100%)',
-    prompt: 'Text fragments sharpen into essays as you close in.',
+    radius: 760,
+    size: 88,
+    speed: 0.18,
+    phase: 3.25,
+    tilt: 0.1,
+    albedo: '#5f6070',
+    material: 'ashen-world',
+    detailColor: '#d2ced3',
+    prompt: 'A dark quiet body where technical writing condenses into clear signal.',
+    video: VIDEO_LIBRARY.earthNight,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card"><span class="chip-title">Systems</span><p>performance, architecture, edge</p></article>
-        <article class="zoom-card"><span class="chip-title">Graphics</span><p>WebGPU, motion, rendering</p></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Writing</span>
+        <h3>Systems, graphics, edge</h3>
+        <p>Dense, example-driven essays for engineers who want depth.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Recent Writing</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Recent essays</span>
         <div class="stacked-cards">
-          <article class="zoom-card wide-card"><h4>Why Rust Outperforms Go for Systems Work</h4><p>Tradeoffs between ergonomics, memory ownership, and confidence under load.</p></article>
-          <article class="zoom-card wide-card"><h4>WebGPU and the Future of Browser Graphics</h4><p>Where richer product interactions are headed and what becomes feasible next.</p></article>
-          <article class="zoom-card wide-card"><h4>Building a 10M RPS API with Edge Functions</h4><p>Operational lessons from chasing latency across distributed boundaries.</p></article>
+          <article class="content-card wide-card"><h4>Why Rust Outperforms Go for Systems Work</h4><p>Confidence, ownership, and performance under load.</p></article>
+          <article class="content-card wide-card"><h4>WebGPU and the Future of Browser Graphics</h4><p>What richer product interactions make possible next.</p></article>
+          <article class="content-card wide-card"><h4>Building a 10M RPS API with Edge Functions</h4><p>Operational lessons from chasing latency across boundaries.</p></article>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Writing Lens</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Writing lens</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Audience</h4><p>Engineers who want practical depth, not hand-wavy inspiration.</p></article>
-          <article class="micro-card"><h4>Style</h4><p>Dense, example-driven writing with strong opinions and operational detail.</p></article>
-          <article class="micro-card"><h4>Purpose</h4><p>Clarify hard ideas, document experiments, and surface patterns worth reusing.</p></article>
+          <article class="micro-card"><h4>Audience</h4><p>Engineers who prefer practical depth.</p></article>
+          <article class="micro-card"><h4>Style</h4><p>Dense, opinionated, example-driven.</p></article>
+          <article class="micro-card"><h4>Purpose</h4><p>To make difficult systems legible.</p></article>
         </div>
       </section>
     `,
@@ -297,37 +316,40 @@ export const PLANETS = [
     id: 'design',
     name: 'PIXEL',
     subtitle: 'Visual Systems',
-    radius: 230,
-    size: 28,
-    speed: 0.88,
-    phase: 5.45,
-    tilt: 0.15,
-    color: '#ffab67',
-    gradient: 'radial-gradient(circle at 32% 28%, #ffd8b8 0%, #ffab67 42%, #bc4f11 74%, #341103 100%)',
-    prompt: 'Surface patterns emerge first, then the design logic beneath them.',
+    radius: 250,
+    size: 126,
+    speed: 0.71,
+    phase: 5.36,
+    tilt: 0.19,
+    albedo: '#9c8f75',
+    material: 'clouded-world',
+    detailColor: '#e4d8c4',
+    prompt: 'A pale clouded world where visual systems emerge from restraint and rhythm.',
+    video: VIDEO_LIBRARY.earthDay,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card stat-card"><span class="stat-value">18</span><span class="stat-label">systems designed</span></article>
-        <article class="zoom-card stat-card"><span class="stat-value">6</span><span class="stat-label">brand kits</span></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Design</span>
+        <h3>Systems with point of view</h3>
+        <p>Interfaces shaped by hierarchy, tone, and motion discipline.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Design Work</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Tools and systems</span>
         <div class="skill-band">
-          ${['Interface Systems','Brand Direction','Motion Language','Figma','Framer','Spline','Rive'].map((skill) => `<span class="skill-orb">${skill}</span>`).join('')}
+          ${['Interface Systems','Motion Language','Figma','Framer','Spline','Rive','Brand Direction'].map((skill) => `<span class="skill-pill">${skill}</span>`).join('')}
         </div>
       </section>
-      <section class="content-block">
-        <p>I design with depth, restraint, and rhythm. Interfaces should feel authored enough to be memorable, but simple enough to disappear once the user is in flow.</p>
+      <section class="content-panel-block">
+        <p>I design with enough character to be memorable and enough restraint to stay useful once the work begins.</p>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Design Principles</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Principles</span>
         <div class="micro-grid">
-          <article class="micro-card"><h4>Hierarchy</h4><p>Clarity first, ornament second.</p></article>
-          <article class="micro-card"><h4>Motion</h4><p>Animation should explain structure, not decorate emptiness.</p></article>
+          <article class="micro-card"><h4>Hierarchy</h4><p>Clarity before ornament.</p></article>
+          <article class="micro-card"><h4>Motion</h4><p>Animation should explain structure.</p></article>
           <article class="micro-card"><h4>Tone</h4><p>Every screen needs a point of view.</p></article>
         </div>
       </section>
@@ -337,37 +359,40 @@ export const PLANETS = [
     id: 'contact',
     name: 'BEACON',
     subtitle: 'Transmission Node',
-    radius: 650,
-    size: 38,
-    speed: 0.28,
-    phase: 1.82,
+    radius: 920,
+    size: 96,
+    speed: 0.14,
+    phase: 1.74,
     tilt: 0.08,
-    color: '#71d39d',
-    gradient: 'radial-gradient(circle at 32% 28%, #cffff0 0%, #71d39d 42%, #1e7e52 74%, #07281a 100%)',
-    prompt: 'Lock onto the beacon to reveal ways to connect.',
+    albedo: '#687d6a',
+    material: 'green-world',
+    detailColor: '#ced7c9',
+    prompt: 'A quiet green transmitter for projects, collaborations, and conversations.',
+    video: VIDEO_LIBRARY.earthDay,
     preview: () => `
-      <div class="zoom-card-grid compact-grid">
-        <article class="zoom-card"><span class="chip-title">Email</span><p>alex@cosmicdeveloper.io</p></article>
-        <article class="zoom-card"><span class="chip-title">Status</span><p>open to strong fits</p></article>
-      </div>
+      <article class="content-card compact-card">
+        <span class="content-eyebrow">Connection</span>
+        <h3>Open to strong fits</h3>
+        <p>Projects, speaking, collaborations, and deep product work.</p>
+      </article>
     `,
     surface: () => `
-      <section class="content-block">
-        <span class="content-kicker">Open Channels</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Channels</span>
         <div class="stacked-cards">
-          <article class="zoom-card wide-card"><h4>Email</h4><p>alex@cosmicdeveloper.io</p></article>
-          <article class="zoom-card wide-card"><h4>GitHub</h4><p>github.com/alexnova</p></article>
-          <article class="zoom-card wide-card"><h4>LinkedIn</h4><p>linkedin.com/in/alexnova</p></article>
+          <article class="content-card wide-card"><h4>Email</h4><p>alex@cosmicdeveloper.io</p></article>
+          <article class="content-card wide-card"><h4>GitHub</h4><p>github.com/alexnova</p></article>
+          <article class="content-card wide-card"><h4>LinkedIn</h4><p>linkedin.com/in/alexnova</p></article>
         </div>
       </section>
     `,
     deep: () => `
-      <section class="content-block">
-        <span class="content-kicker">Availability</span>
+      <section class="content-panel-block">
+        <span class="content-eyebrow">Availability</span>
         <div class="micro-grid">
           <article class="micro-card"><h4>Projects</h4><p>Selective collaborations with teams that care deeply about product quality.</p></article>
-          <article class="micro-card"><h4>Speaking</h4><p>Systems design, frontend motion, and performance storytelling.</p></article>
-          <article class="micro-card"><h4>Response Window</h4><p>Usually within 24 hours for serious inquiries.</p></article>
+          <article class="micro-card"><h4>Speaking</h4><p>Systems design, motion, and performance storytelling.</p></article>
+          <article class="micro-card"><h4>Response</h4><p>Usually within 24 hours for serious inquiries.</p></article>
         </div>
       </section>
     `,
@@ -377,52 +402,56 @@ export const PLANETS = [
 export const BLACK_HOLE = {
   id: 'singularity',
   name: 'EVENT HORIZON',
-  subtitle: 'Singularity Archive',
-  radius: 880,
-  size: 92,
-  speed: 0.12,
-  phase: 2.2,
+  subtitle: 'Archive Singularity',
+  radius: 1180,
+  size: 180,
+  speed: 0.08,
+  phase: 2.12,
   tilt: 0.05,
-  color: '#8ec5ff',
-  prompt: 'The closer you drift, the faster space begins to fold.',
+  albedo: '#2c3e63',
+  material: 'singularity',
+  detailColor: '#bfd4ff',
+  prompt: 'Gravity begins to shear the field as you cross the lensing ring.',
+  video: VIDEO_LIBRARY.singularity,
   preview: () => `
-    <div class="zoom-card-grid compact-grid">
-      <article class="zoom-card"><span class="chip-title">Transition</span><p>space bends under depth</p></article>
-      <article class="zoom-card"><span class="chip-title">Archive</span><p>process, experiments, raw notes</p></article>
-    </div>
+    <article class="content-card compact-card">
+      <span class="content-eyebrow">Singularity</span>
+      <h3>Process archive</h3>
+      <p>Prototype trails, motion studies, and raw systems thinking.</p>
+    </article>
   `,
   surface: () => `
-    <section class="content-block">
-      <span class="content-kicker">Archive Sector</span>
-      <h3>The universe folds inward here</h3>
-      <p>This is the meta-layer: experiments, prototypes, and unfinished directions that shaped the shipped work around the rest of the system.</p>
+    <section class="content-panel-block">
+      <span class="content-eyebrow">Archive sector</span>
+      <h3>The field folds inward</h3>
+      <p>This zone holds unfinished directions, motion experiments, and discarded prototypes that taught the final work what it needed to become.</p>
     </section>
-    <section class="content-block two-col">
+    <section class="content-panel-block two-col">
       <div>
-        <span class="content-kicker">Contains</span>
-        <ul class="detail-list">
+        <span class="content-eyebrow">Contains</span>
+        <ul class="content-list">
           <li>interface prototypes</li>
-          <li>motion studies</li>
+          <li>camera experiments</li>
           <li>system diagrams</li>
         </ul>
       </div>
       <div>
-        <span class="content-kicker">Effect</span>
-        <ul class="detail-list muted">
-          <li>accelerated zoom</li>
-          <li>distortion field</li>
-          <li>scene tint shift</li>
+        <span class="content-eyebrow">Effect</span>
+        <ul class="content-list muted-list">
+          <li>stronger zoom pull</li>
+          <li>subtle lensing</li>
+          <li>scene collapse</li>
         </ul>
       </div>
     </section>
   `,
   deep: () => `
-    <section class="content-block">
-      <span class="content-kicker">Micro Archive</span>
+    <section class="content-panel-block">
+      <span class="content-eyebrow">Micro archive</span>
       <div class="micro-grid">
-        <article class="micro-card"><h4>Prototype Vault</h4><p>Discarded UI directions that still taught the final product what to become.</p></article>
-        <article class="micro-card"><h4>Motion Lab</h4><p>Tests around inertia, camera focus, and nested reveal systems.</p></article>
-        <article class="micro-card"><h4>Operating Thesis</h4><p>People remember interfaces that feel spatial, coherent, and inevitable.</p></article>
+        <article class="micro-card"><h4>Prototype vault</h4><p>Interfaces that never shipped but still shaped the final system.</p></article>
+        <article class="micro-card"><h4>Motion lab</h4><p>Tests around inertia, focus, lensing, and visual calm.</p></article>
+        <article class="micro-card"><h4>Operating thesis</h4><p>The best interfaces feel spatial, inevitable, and quietly alive.</p></article>
       </div>
     </section>
   `,
