@@ -9,17 +9,33 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
+  <script src="https://unpkg.com/lenis@1.1.16/dist/lenis.min.js"></script>
 </head>
 <body>
 
 <!-- ═══ INTRO ════════════════════════════════════════════════════ -->
 <div id="intro">
   <div id="intro-stars-canvas"></div>
-  <h1>Cosmic Portfolio</h1>
-  <p>An interactive solar system of work, skills, and stories.<br>
-     Navigate the cosmos to explore each world.</p>
-  <button id="intro-btn">Begin Exploration</button>
-  <span id="intro-hint">scroll · drag · click planets</span>
+  <div class="intro-vignette"></div>
+  <div class="intro-system" aria-hidden="true">
+    <div class="intro-sun-core"></div>
+    <div class="intro-orbit intro-orbit-1"></div>
+    <div class="intro-orbit intro-orbit-2"></div>
+    <div class="intro-orbit intro-orbit-3"></div>
+    <div class="intro-orbit intro-orbit-4"></div>
+    <div class="intro-planet intro-planet-1"></div>
+    <div class="intro-planet intro-planet-2"></div>
+    <div class="intro-planet intro-planet-3"></div>
+    <div class="intro-planet intro-planet-4"></div>
+    <div class="intro-planet intro-planet-5"></div>
+  </div>
+  <div class="intro-copy">
+    <span class="intro-kicker">Solar Drift Interface</span>
+    <h1>Cosmic Portfolio</h1>
+    <p>Slip into orbit with Lenis-smooth motion, drifting constellations, and planets that surge forward like an endless deep-space zoom.</p>
+    <button id="intro-btn">Begin Exploration</button>
+    <span id="intro-hint">scroll · drag · click planets</span>
+  </div>
 </div>
 
 <!-- ═══ STARFIELD (CANVAS) ═══════════════════════════════════════ -->
@@ -67,7 +83,7 @@
     </div>
     <button id="panel-close" aria-label="Close panel">✕</button>
   </div>
-  <div id="panel-body"></div>
+  <div id="panel-body"><div id="panel-scroll-content"></div></div>
 </div>
 
 <!-- ═══ TOOLTIP ══════════════════════════════════════════════════ -->
@@ -535,12 +551,15 @@ class CosmicApp {
     this.panelTitle = document.getElementById('panel-title');
     this.panelSub   = document.getElementById('panel-subtitle');
     this.panelBody  = document.getElementById('panel-body');
+    this.panelScrollContent = document.getElementById('panel-scroll-content');
     this.panelClose = document.getElementById('panel-close');
     this.zoomReadout = document.getElementById('zoom-readout');
     this.minimap  = document.getElementById('minimap');
     this.quicknav = document.getElementById('quicknav');
     this.tooltip  = document.getElementById('tooltip');
     this.warp     = document.getElementById('warp-overlay');
+    this.lenis    = null;
+    this._lenisRaf = null;
 
     this.activePlanetId = null;
     this.tourActive     = false;
@@ -566,6 +585,7 @@ class CosmicApp {
     this.sf  = new Starfield(document.getElementById('starfield'));
     this.vp  = new ViewportEngine(this.world, this.viewport);
     this.vp.onZoomChange = s => this._onZoomChange(s);
+    this._initLenis();
 
     /* Build scene */
     this._buildScene();
@@ -588,6 +608,8 @@ class CosmicApp {
   /* ─── SCENE BUILD ──────────────────────────────── */
 
   _buildScene() {
+    document.body.classList.add('app-ready');
+
     /* Orbit rings */
     const rings = [...new Set(PLANETS.map(p => p.radius))].sort((a,b)=>a-b);
     rings.forEach(r => {
@@ -613,6 +635,9 @@ class CosmicApp {
       const wrap = document.createElement('div');
       wrap.className = 'planet-wrapper';
       wrap.dataset.id = p.id;
+      wrap.style.setProperty('--planet-delay', `${(Math.random() * 0.9).toFixed(2)}s`);
+      wrap.style.setProperty('--planet-zoom', (1.35 + Math.random() * 1.9).toFixed(2));
+      wrap.style.setProperty('--planet-drift', `${(-14 + Math.random() * 28).toFixed(2)}px`);
 
       const planet = document.createElement('div');
       planet.className = 'planet';
@@ -667,6 +692,31 @@ class CosmicApp {
 
       return { el: wrap, planet: p, planetEl: planet };
     });
+  }
+
+  _initLenis() {
+    if (!window.Lenis) return;
+    if (this.lenis) {
+      this.lenis.destroy();
+      cancelAnimationFrame(this._lenisRaf);
+    }
+
+    this.lenis = new window.Lenis({
+      wrapper: this.panelBody,
+      content: this.panelScrollContent,
+      smoothWheel: true,
+      syncTouch: true,
+      touchMultiplier: 1.1,
+      duration: 1.15,
+      easing: (t) => 1 - Math.pow(1 - t, 4),
+    });
+
+    const raf = (time) => {
+      if (!this.lenis) return;
+      this.lenis.raf(time);
+      this._lenisRaf = requestAnimationFrame(raf);
+    };
+    this._lenisRaf = requestAnimationFrame(raf);
   }
 
   /* ─── MINIMAP ─────────────────────────────────── */
@@ -825,7 +875,11 @@ class CosmicApp {
     this.panelDot.style.cssText   = `background:${p.color};box-shadow:0 0 10px ${p.color}`;
     this.panelTitle.textContent   = p.name;
     this.panelSub.textContent     = p.subtitle;
-    this.panelBody.innerHTML      = p.content();
+    this.panelScrollContent.innerHTML = p.content();
+    if (this.lenis) {
+      this.lenis.resize();
+      this.lenis.scrollTo(0, { immediate: true });
+    }
     this.panel.classList.add('visible');
 
     /* Quick nav active state */
@@ -838,7 +892,7 @@ class CosmicApp {
     this.panel.classList.remove('visible');
     this.activePlanetId = null;
     this.quicknav.querySelectorAll('.qn-btn').forEach(b => b.classList.remove('active'));
-    setTimeout(() => { this.panelBody.innerHTML = ''; }, 450);
+    setTimeout(() => { this.panelScrollContent.innerHTML = ''; }, 450);
   }
 
   /* ─── WARP EFFECT ─────────────────────────────── */
@@ -926,21 +980,33 @@ class CosmicApp {
 
 /* ════════════════ BOOT ════════════════ */
 const app = new CosmicApp();
+let hasBooted = false;
+
+function bootApp() {
+  if (hasBooted) return;
+  hasBooted = true;
+
+  const intro = document.getElementById('intro');
+  document.body.classList.add('launching');
+  intro.classList.add('hidden');
+
+  setTimeout(() => {
+    intro.remove();
+    document.body.classList.remove('launching');
+  }, 1400);
+
+  app.init();
+}
 
 document.getElementById('intro-btn').addEventListener('click', () => {
-  const intro = document.getElementById('intro');
-  intro.classList.add('hidden');
-  setTimeout(() => { intro.remove(); }, 900);
-  app.init();
+  bootApp();
 });
 
 /* Allow skipping intro on any key */
 window.addEventListener('keydown', (e) => {
   const intro = document.getElementById('intro');
   if (intro && !intro.classList.contains('hidden')) {
-    intro.classList.add('hidden');
-    setTimeout(() => { intro.remove(); }, 900);
-    app.init();
+    bootApp();
   }
 }, { once: true, passive: true });
 
