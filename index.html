@@ -3,1013 +3,665 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Cosmic Portfolio — An interactive space exploration portfolio">
-  <title>Cosmic Portfolio Engine</title>
+  <meta name="description" content="Cosmic Portfolio - an infinite zoom portfolio drifting through a living universe.">
+  <title>Cosmic Portfolio - Infinite Zoom</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
-  <script src="https://unpkg.com/lenis@1.1.16/dist/lenis.min.js"></script>
 </head>
 <body>
-
-<!-- ═══ INTRO ════════════════════════════════════════════════════ -->
-<div id="intro">
-  <div id="intro-stars-canvas"></div>
-  <div class="intro-vignette"></div>
-  <div class="intro-system" aria-hidden="true">
-    <div class="intro-sun-core"></div>
-    <div class="intro-orbit intro-orbit-1"></div>
-    <div class="intro-orbit intro-orbit-2"></div>
-    <div class="intro-orbit intro-orbit-3"></div>
-    <div class="intro-orbit intro-orbit-4"></div>
-    <div class="intro-planet intro-planet-1"></div>
-    <div class="intro-planet intro-planet-2"></div>
-    <div class="intro-planet intro-planet-3"></div>
-    <div class="intro-planet intro-planet-4"></div>
-    <div class="intro-planet intro-planet-5"></div>
-  </div>
-  <div class="intro-copy">
-    <span class="intro-kicker">Solar Drift Interface</span>
-    <h1>Cosmic Portfolio</h1>
-    <p>Slip into orbit with Lenis-smooth motion, drifting constellations, and planets that surge forward like an endless deep-space zoom.</p>
-    <button id="intro-btn">Begin Exploration</button>
-    <span id="intro-hint">scroll · drag · click planets</span>
-  </div>
-</div>
-
-<!-- ═══ STARFIELD (CANVAS) ═══════════════════════════════════════ -->
-<canvas id="starfield"></canvas>
-
-<!-- ═══ VIEWPORT ════════════════════════════════════════════════ -->
-<div id="viewport">
-  <div id="world">
-    <!-- Orbit rings and planets are injected by JS -->
-  </div>
-</div>
-
-<!-- ═══ HUD ═════════════════════════════════════════════════════ -->
-<div id="hud">
-  <span id="hud-title">COSMIC PORTFOLIO</span>
-  <div class="hud-sep"></div>
-  <span id="zoom-readout">55%</span>
-</div>
-
-<!-- ═══ BOTTOM TOOLBAR ═══════════════════════════════════════════ -->
-<div id="toolbar">
-  <button class="tb-btn" id="btn-zoom-in"  title="Zoom In">+</button>
-  <button class="tb-btn" id="btn-zoom-out" title="Zoom Out">−</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-reset"    title="Reset View">⌂</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-tour"     title="Auto Tour">▶</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-speed"    title="Orbit Speed">⚡</button>
-</div>
-
-<!-- ═══ MINIMAP ══════════════════════════════════════════════════ -->
-<div id="minimap"></div>
-
-<!-- ═══ QUICK NAV ════════════════════════════════════════════════ -->
-<nav id="quicknav" aria-label="Quick Navigation"></nav>
-
-<!-- ═══ CONTENT PANEL ════════════════════════════════════════════ -->
-<div id="content-panel" role="dialog" aria-modal="true">
-  <div id="panel-header">
-    <div id="panel-dot"></div>
-    <div>
-      <div id="panel-title"></div>
-      <div id="panel-subtitle"></div>
+  <div id="intro">
+    <div class="intro-stars"></div>
+    <div class="intro-core"></div>
+    <div class="intro-copy">
+      <span class="intro-kicker">Infinite Zoom Portfolio</span>
+      <h1>Cosmic Portfolio</h1>
+      <p>Scroll to descend through orbit, atmosphere, and surface. Drag to drift through the system. Every section reveals itself only through depth.</p>
+      <span class="intro-hint">Scroll to enter the universe</span>
     </div>
-    <button id="panel-close" aria-label="Close panel">✕</button>
   </div>
-  <div id="panel-body"><div id="panel-scroll-content"></div></div>
-</div>
 
-<!-- ═══ TOOLTIP ══════════════════════════════════════════════════ -->
-<div id="tooltip" role="tooltip"></div>
+  <canvas id="starfield"></canvas>
 
-<!-- ═══ WARP OVERLAY ═════════════════════════════════════════════ -->
-<div id="warp-overlay"></div>
+  <div id="viewport">
+    <div id="world"></div>
+  </div>
 
-<!-- ═══ SCRIPTS ══════════════════════════════════════════════════ -->
-<script type="module">
+  <div id="hud" aria-live="polite">
+    <div class="hud-block">
+      <span class="hud-label">Current Signal</span>
+      <strong id="focus-readout">Drift through the inner orbit</strong>
+    </div>
+    <div class="hud-block hud-block-right">
+      <span class="hud-label">Zoom Depth</span>
+      <strong id="zoom-readout">38%</strong>
+    </div>
+  </div>
 
-/* ── Inline engine modules (avoids module bundler requirement) ── */
+  <div id="proximity-hint">Scroll to explore. Drag to reframe space.</div>
+  <div id="depth-ladder" aria-hidden="true">
+    <span>Object</span>
+    <span>Name</span>
+    <span>Orbit</span>
+    <span>Surface</span>
+    <span>Deep</span>
+  </div>
 
-/* ════════════════ STARFIELD ════════════════ */
-class Starfield {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx    = canvas.getContext('2d', { alpha: false });
-    const mob = window.innerWidth < 700;
-    this.STATIC_COUNT  = mob ? 220 : 420;
-    this.TWINKLE_COUNT = mob ? 16  : 32;
-    this.LAYER_COUNTS  = mob ? [36, 26, 16] : [88, 58, 34];
-    this.offscreen = document.createElement('canvas');
-    this.offCtx    = this.offscreen.getContext('2d', { alpha: false });
-    this._shooters = [];
-    this._nextShooterAt = 0;
-    this._prevTs = 0;
-    this._running  = false;
-    this._raf      = null;
-    this._init();
-  }
-  _init() {
-    this._resize(); this._buildStars(); this._renderOffscreen(); this._startLoop();
-    window.addEventListener('resize', () => {
-      this._resize(); this._buildStars(); this._renderOffscreen();
-    }, { passive: true });
-  }
-  _resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.dpr = dpr; this.w = window.innerWidth; this.h = window.innerHeight;
-    [this.canvas, this.offscreen].forEach(c => {
-      c.width  = this.w * dpr; c.height = this.h * dpr;
-      c.style.width = this.w + 'px'; c.style.height = this.h + 'px';
-    });
-    this.ctx.setTransform(dpr,0,0,dpr,0,0);
-    this.offCtx.setTransform(dpr,0,0,dpr,0,0);
-  }
-  _buildStars() {
-    const { w, h } = this;
-    this.staticBuf = new Float32Array(this.STATIC_COUNT * 4);
-    for (let i = 0; i < this.STATIC_COUNT; i++) {
-      const b = i * 4;
-      this.staticBuf[b]   = Math.random() * w;
-      this.staticBuf[b+1] = Math.random() * h;
-      this.staticBuf[b+2] = Math.random() * 1.2 + 0.2;
-      this.staticBuf[b+3] = Math.random() * 0.6 + 0.2;
-    }
-    this.twinklers = Array.from({ length: this.TWINKLE_COUNT }, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      r: Math.random() * 1.5 + 0.5,
-      phase: Math.random() * Math.PI * 2,
-      speed: (Math.random() * 0.6 + 0.3) * 0.01,
-    }));
-    const maxOrbit = Math.hypot(w, h) * 0.62;
-    this.layers = this.LAYER_COUNTS.map((count, li) => {
-      const depth = li + 1;
-      const layerVelocity = 0.12 - li * 0.028;
-      return Array.from({ length: count }, () => {
-        const isWarm = Math.random() < 0.18;
-        const orbit = Math.pow(Math.random(), 0.72) * maxOrbit;
-        return {
-          x: 0,
-          y: 0,
-          r: Math.random() * (0.45 + depth * 0.28) + 0.25,
-          a: Math.random() * 0.6 + 0.25,
-          orbit,
-          angle: Math.random() * 6.2832,
-          vel: (Math.random() * 0.45 + 0.8) * layerVelocity * (1 - Math.min(0.72, orbit / maxOrbit) * 0.35),
-          flatten: 0.62 + Math.random() * 0.28,
-          arm: Math.random() * 8 + 2,
+  <div id="minimap" aria-label="System orientation"></div>
+  <div id="warp-overlay"></div>
+
+  <script type="module">
+    import { PLANETS, BLACK_HOLE, INTRO_COPY } from './components/planets-data.js';
+
+    class Starfield {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d', { alpha: false });
+        const mob = window.innerWidth < 700;
+        this.staticCount = mob ? 240 : 420;
+        this.twinkleCount = mob ? 18 : 34;
+        this.layers = mob ? [44, 28, 18] : [90, 58, 34];
+        this.offscreen = document.createElement('canvas');
+        this.offCtx = this.offscreen.getContext('2d', { alpha: false });
+        this.shooters = [];
+        this.nextShooterAt = 0;
+        this.prevTs = 0;
+        this.tint = 0;
+        this.running = false;
+        this.raf = null;
+        this.init();
+      }
+      init() {
+        this.resize();
+        this.build();
+        this.renderOffscreen();
+        this.startLoop();
+        window.addEventListener('resize', () => {
+          this.resize();
+          this.build();
+          this.renderOffscreen();
+        }, { passive: true });
+      }
+      setWarpTint(amount) {
+        this.tint += (amount - this.tint) * 0.08;
+      }
+      resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.dpr = dpr;
+        this.w = window.innerWidth;
+        this.h = window.innerHeight;
+        [this.canvas, this.offscreen].forEach((c) => {
+          c.width = this.w * dpr;
+          c.height = this.h * dpr;
+          c.style.width = this.w + 'px';
+          c.style.height = this.h + 'px';
+        });
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      build() {
+        const { w, h } = this;
+        this.staticBuf = new Float32Array(this.staticCount * 4);
+        for (let i = 0; i < this.staticCount; i++) {
+          const b = i * 4;
+          this.staticBuf[b] = Math.random() * w;
+          this.staticBuf[b + 1] = Math.random() * h;
+          this.staticBuf[b + 2] = Math.random() * 1.4 + 0.25;
+          this.staticBuf[b + 3] = Math.random() * 0.55 + 0.22;
+        }
+        this.twinklers = Array.from({ length: this.twinkleCount }, () => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.8 + 0.5,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.7 + 0.45,
+        }));
+        const maxOrbit = Math.hypot(w, h) * 0.72;
+        this.galaxyLayers = this.layers.map((count, li) => Array.from({ length: count }, () => ({
+          orbit: Math.pow(Math.random(), 0.78) * maxOrbit,
+          angle: Math.random() * Math.PI * 2,
+          vel: (Math.random() * 0.35 + 0.65) * (0.1 - li * 0.02),
+          flatten: 0.58 + Math.random() * 0.22,
+          size: Math.random() * (0.45 + li * 0.18) + 0.25,
+          alpha: Math.random() * 0.6 + 0.2,
           pulse: Math.random() * Math.PI * 2,
-          twinkle: Math.random() * Math.PI * 2,
-          twinkleSpeed: Math.random() * 1.2 + 0.5,
-          color: isWarm ? [255, 235, 200] : [208, 225, 255],
-        };
-      });
-    });
-    this._shooters.length = 0;
-    this._nextShooterAt = performance.now() + (Math.random() * 3500 + 2000);
-    this._prevTs = 0;
-  }
-  _renderOffscreen() {
-    const ctx = this.offCtx; const { w, h } = this;
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#03040b'; ctx.fillRect(0, 0, w, h);
-    [
-      [w*0.15, h*0.25, w*0.26, 'rgba(52,40,125,0.22)'],
-      [w*0.82, h*0.65, w*0.20, 'rgba(22,90,132,0.16)'],
-      [w*0.55, h*0.80, w*0.28, 'rgba(95,26,118,0.13)'],
-      [w*0.36, h*0.56, w*0.23, 'rgba(35,52,140,0.10)'],
-    ].forEach(([bx, by, br, bc]) => {
-      const g = ctx.createRadialGradient(bx,by,0,bx,by,br);
-      g.addColorStop(0, bc); g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-    });
-    const buf = this.staticBuf;
-    for (let i = 0; i < this.STATIC_COUNT; i++) {
-      const b = i * 4;
-      ctx.beginPath();
-      ctx.arc(buf[b], buf[b+1], buf[b+2], 0, 6.2832);
-      ctx.fillStyle = `rgba(220,230,255,${buf[b+3].toFixed(2)})`;
-      ctx.fill();
-    }
-  }
-  _spawnShooter(now) {
-    const y = Math.random() * this.h * 0.55;
-    const x = Math.random() * this.w * 0.55;
-    this._shooters.push({
-      x, y,
-      vx: Math.random() * 520 + 760,
-      vy: Math.random() * 130 + 180,
-      life: 0,
-      ttl: Math.random() * 0.55 + 0.45,
-      len: Math.random() * 70 + 55,
-    });
-    this._nextShooterAt = now + (Math.random() * 4500 + 2800);
-  }
-  _startLoop() {
-    this._running = true;
-    const tick = (ts) => {
-      if (!this._running) return;
-      const t = ts * 0.001;
-      const dt = this._prevTs ? Math.min(0.05, (ts - this._prevTs) * 0.001) : 0.016;
-      this._prevTs = ts;
-      const ctx = this.ctx; const { w, h } = this;
-      ctx.drawImage(this.offscreen, 0, 0, w, h);
-      const cx = w * 0.5 + Math.cos(t * 0.08) * w * 0.018;
-      const cy = h * 0.5 + Math.sin(t * 0.06) * h * 0.014;
-
-      for (const layer of this.layers) {
-        for (const s of layer) {
-          s.angle += s.vel * dt;
-          const pulse = Math.sin(t * 0.42 + s.pulse) * s.arm;
-          const orbit = s.orbit + pulse;
-          s.x = cx + Math.cos(s.angle) * orbit;
-          s.y = cy + Math.sin(s.angle) * orbit * s.flatten;
-
-          const tw = 0.7 + 0.3 * Math.sin(t * s.twinkleSpeed + s.twinkle);
-          const alpha = Math.min(1, s.a * tw);
+          warm: Math.random() < 0.2,
+        })));
+        this.shooters.length = 0;
+        this.nextShooterAt = performance.now() + Math.random() * 4000 + 2800;
+      }
+      renderOffscreen() {
+        const ctx = this.offCtx;
+        ctx.clearRect(0, 0, this.w, this.h);
+        ctx.fillStyle = '#02040b';
+        ctx.fillRect(0, 0, this.w, this.h);
+        [
+          [this.w * 0.18, this.h * 0.22, this.w * 0.28, 'rgba(48,64,160,0.16)'],
+          [this.w * 0.78, this.h * 0.68, this.w * 0.25, 'rgba(12,116,148,0.11)'],
+          [this.w * 0.52, this.h * 0.48, this.w * 0.33, 'rgba(82,20,110,0.12)'],
+        ].forEach(([x, y, r, color]) => {
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, color);
+          g.addColorStop(1, 'transparent');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, this.w, this.h);
+        });
+        for (let i = 0; i < this.staticCount; i++) {
+          const b = i * 4;
           ctx.beginPath();
-          ctx.arc(s.x, s.y, s.r, 0, 6.2832);
-          ctx.fillStyle = `rgba(${s.color[0]},${s.color[1]},${s.color[2]},${alpha.toFixed(3)})`;
+          ctx.arc(this.staticBuf[b], this.staticBuf[b + 1], this.staticBuf[b + 2], 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(220,230,255,${this.staticBuf[b + 3].toFixed(2)})`;
           ctx.fill();
-
-          if (s.r > 1.25) {
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.r * 2.8, 0, 6.2832);
-            ctx.fillStyle = `rgba(${s.color[0]},${s.color[1]},${s.color[2]},${(alpha * 0.13).toFixed(3)})`;
-            ctx.fill();
-          }
         }
       }
-
-      for (const s of this.twinklers) {
-        const op = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * s.speed * 628 + s.phase));
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.2832);
-        ctx.fillStyle = `rgba(210,220,255,${op.toFixed(2)})`; ctx.fill();
+      spawnShooter(now) {
+        this.shooters.push({
+          x: Math.random() * this.w * 0.5,
+          y: Math.random() * this.h * 0.5,
+          vx: Math.random() * 540 + 780,
+          vy: Math.random() * 160 + 120,
+          ttl: Math.random() * 0.55 + 0.45,
+          len: Math.random() * 80 + 50,
+          life: 0,
+        });
+        this.nextShooterAt = now + Math.random() * 5000 + 3500;
       }
-
-      if (ts > this._nextShooterAt && this._shooters.length < 3) {
-        this._spawnShooter(ts);
-      }
-      if (this._shooters.length) {
-        const keep = [];
-        for (const sh of this._shooters) {
-          sh.life += dt;
-          sh.x += sh.vx * dt;
-          sh.y += sh.vy * dt;
-          if (sh.life < sh.ttl && sh.x < w + sh.len && sh.y < h + sh.len) {
-            const p = sh.life / sh.ttl;
-            const alpha = (1 - p) * 0.55;
-            const tx = sh.x - sh.len * 0.9;
-            const ty = sh.y - sh.len * 0.38;
-            const g = ctx.createLinearGradient(sh.x, sh.y, tx, ty);
-            g.addColorStop(0, `rgba(255,245,214,${alpha.toFixed(3)})`);
-            g.addColorStop(1, 'rgba(255,245,214,0)');
-            ctx.lineWidth = 1.6;
-            ctx.strokeStyle = g;
-            ctx.beginPath();
-            ctx.moveTo(sh.x, sh.y);
-            ctx.lineTo(tx, ty);
-            ctx.stroke();
-            keep.push(sh);
+      startLoop() {
+        this.running = true;
+        const tick = (ts) => {
+          if (!this.running) return;
+          const t = ts * 0.001;
+          const dt = this.prevTs ? Math.min(0.05, (ts - this.prevTs) * 0.001) : 0.016;
+          this.prevTs = ts;
+          this.ctx.drawImage(this.offscreen, 0, 0, this.w, this.h);
+          const tintAlpha = this.tint * 0.42;
+          if (tintAlpha > 0.002) {
+            this.ctx.fillStyle = `rgba(130,170,255,${tintAlpha.toFixed(3)})`;
+            this.ctx.fillRect(0, 0, this.w, this.h);
           }
+          const cx = this.w * 0.5 + Math.cos(t * 0.06) * this.w * 0.016;
+          const cy = this.h * 0.5 + Math.sin(t * 0.05) * this.h * 0.012;
+          for (const layer of this.galaxyLayers) {
+            for (const star of layer) {
+              star.angle += star.vel * dt;
+              const orbit = star.orbit + Math.sin(t * 0.45 + star.pulse) * 10;
+              const x = cx + Math.cos(star.angle) * orbit;
+              const y = cy + Math.sin(star.angle) * orbit * star.flatten;
+              const alpha = star.alpha * (0.7 + 0.3 * Math.sin(t * 0.9 + star.pulse));
+              this.ctx.beginPath();
+              this.ctx.arc(x, y, star.size, 0, Math.PI * 2);
+              this.ctx.fillStyle = star.warm
+                ? `rgba(255,230,198,${alpha.toFixed(3)})`
+                : `rgba(208,226,255,${alpha.toFixed(3)})`;
+              this.ctx.fill();
+            }
+          }
+          for (const s of this.twinklers) {
+            const alpha = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin(t * s.speed * 4 + s.phase));
+            this.ctx.beginPath();
+            this.ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            this.ctx.fillStyle = `rgba(210,220,255,${alpha.toFixed(2)})`;
+            this.ctx.fill();
+          }
+          if (ts > this.nextShooterAt && this.shooters.length < 3) this.spawnShooter(ts);
+          if (this.shooters.length) {
+            const keep = [];
+            for (const sh of this.shooters) {
+              sh.life += dt;
+              sh.x += sh.vx * dt;
+              sh.y += sh.vy * dt;
+              if (sh.life < sh.ttl && sh.x < this.w + sh.len && sh.y < this.h + sh.len) {
+                const p = sh.life / sh.ttl;
+                const alpha = (1 - p) * 0.52;
+                const tx = sh.x - sh.len * 0.92;
+                const ty = sh.y - sh.len * 0.34;
+                const g = this.ctx.createLinearGradient(sh.x, sh.y, tx, ty);
+                g.addColorStop(0, `rgba(255,245,214,${alpha.toFixed(3)})`);
+                g.addColorStop(1, 'rgba(255,245,214,0)');
+                this.ctx.lineWidth = 1.5;
+                this.ctx.strokeStyle = g;
+                this.ctx.beginPath();
+                this.ctx.moveTo(sh.x, sh.y);
+                this.ctx.lineTo(tx, ty);
+                this.ctx.stroke();
+                keep.push(sh);
+              }
+            }
+            this.shooters = keep;
+          }
+          this.tint += (0 - this.tint) * 0.015;
+          this.raf = requestAnimationFrame(tick);
+        };
+        this.raf = requestAnimationFrame(tick);
+      }
+    }
+
+    class ViewportEngine {
+      constructor(worldEl, viewportEl) {
+        this.world = worldEl;
+        this.viewport = viewportEl;
+        this.x = 0;
+        this.y = 0;
+        this.scale = 0.38;
+        this.targetX = 0;
+        this.targetY = 0;
+        this.targetScale = 0.38;
+        this.minScale = 0.18;
+        this.maxScale = 22;
+        this.zoomBoost = 1;
+        this.vx = 0;
+        this.vy = 0;
+        this.friction = 0.9;
+        this.wheelSensitivity = 0.0015;
+        this.dragging = false;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.pinchDist = 0;
+        this.running = false;
+        this.raf = null;
+        this.onZoomChange = null;
+        this.bindEvents();
+        this.startLoop();
+      }
+      setZoomBoost(boost) {
+        this.zoomBoost = boost;
+      }
+      reset() {
+        this.targetX = 0;
+        this.targetY = 0;
+        this.targetScale = 0.38;
+      }
+      getScale() {
+        return this.scale;
+      }
+      getOffset() {
+        return { x: this.x, y: this.y };
+      }
+      zoomToward(cx, cy, factor) {
+        const nextScale = this.clamp(this.targetScale * factor);
+        const ratio = nextScale / Math.max(0.0001, this.targetScale);
+        this.targetX = cx - (cx - this.targetX) * ratio;
+        this.targetY = cy - (cy - this.targetY) * ratio;
+        this.targetScale = nextScale;
+        if (this.onZoomChange) this.onZoomChange(nextScale);
+      }
+      startLoop() {
+        this.running = true;
+        const tick = (ts) => {
+          if (!this.running) return;
+          const t = ts * 0.001;
+          if (!this.dragging) {
+            this.targetX += this.vx;
+            this.targetY += this.vy;
+            this.vx *= this.friction;
+            this.vy *= this.friction;
+          }
+          const driftX = Math.cos(t * 0.19) * 0.9;
+          const driftY = Math.sin(t * 0.14) * 0.8;
+          this.x += (this.targetX + driftX - this.x) * 0.09;
+          this.y += (this.targetY + driftY - this.y) * 0.09;
+          this.scale += (this.targetScale - this.scale) * 0.11;
+          this.world.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+          this.raf = requestAnimationFrame(tick);
+        };
+        this.raf = requestAnimationFrame(tick);
+      }
+      bindEvents() {
+        const vp = this.viewport;
+        this.onMouseDown = (e) => {
+          if (e.button !== 0) return;
+          this.dragging = true;
+          this.lastX = e.clientX;
+          this.lastY = e.clientY;
+          this.vx = 0;
+          this.vy = 0;
+          vp.classList.add('grabbing');
+        };
+        this.onMouseMove = (e) => {
+          if (!this.dragging) return;
+          const dx = e.clientX - this.lastX;
+          const dy = e.clientY - this.lastY;
+          this.lastX = e.clientX;
+          this.lastY = e.clientY;
+          this.targetX += dx;
+          this.targetY += dy;
+          this.vx = dx;
+          this.vy = dy;
+        };
+        this.onMouseUp = () => {
+          this.dragging = false;
+          vp.classList.remove('grabbing');
+        };
+        this.onWheel = (e) => {
+          e.preventDefault();
+          const rect = vp.getBoundingClientRect();
+          const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * vp.clientHeight : e.deltaY;
+          const factor = Math.exp(-delta * this.wheelSensitivity * this.zoomBoost);
+          this.zoomToward(e.clientX - rect.left, e.clientY - rect.top, factor);
+        };
+        this.onTouchStart = (e) => {
+          if (e.touches.length === 1) {
+            this.dragging = true;
+            this.lastX = e.touches[0].clientX;
+            this.lastY = e.touches[0].clientY;
+          } else if (e.touches.length === 2) {
+            this.dragging = false;
+            this.pinchDist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+          }
+        };
+        this.onTouchMove = (e) => {
+          if (e.touches.length === 1 && this.dragging) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - this.lastX;
+            const dy = e.touches[0].clientY - this.lastY;
+            this.lastX = e.touches[0].clientX;
+            this.lastY = e.touches[0].clientY;
+            this.targetX += dx;
+            this.targetY += dy;
+          } else if (e.touches.length === 2) {
+            e.preventDefault();
+            const dist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            const ratio = Math.max(0.92, Math.min(1.08, dist / Math.max(1, this.pinchDist)));
+            this.pinchDist = dist;
+            const rect = vp.getBoundingClientRect();
+            const cx = (e.touches[0].clientX + e.touches[1].clientX) * 0.5 - rect.left;
+            const cy = (e.touches[0].clientY + e.touches[1].clientY) * 0.5 - rect.top;
+            this.zoomToward(cx, cy, ratio);
+          }
+        };
+        this.onTouchEnd = () => {
+          this.dragging = false;
+        };
+        vp.addEventListener('mousedown', this.onMouseDown, { passive: true });
+        window.addEventListener('mousemove', this.onMouseMove, { passive: true });
+        window.addEventListener('mouseup', this.onMouseUp, { passive: true });
+        vp.addEventListener('wheel', this.onWheel, { passive: false });
+        vp.addEventListener('touchstart', this.onTouchStart, { passive: true });
+        vp.addEventListener('touchmove', this.onTouchMove, { passive: false });
+        vp.addEventListener('touchend', this.onTouchEnd, { passive: true });
+      }
+      clamp(value) {
+        return Math.max(this.minScale, Math.min(this.maxScale, value));
+      }
+    }
+
+    class CosmicApp {
+      constructor() {
+        this.viewport = document.getElementById('viewport');
+        this.world = document.getElementById('world');
+        this.focusReadout = document.getElementById('focus-readout');
+        this.zoomReadout = document.getElementById('zoom-readout');
+        this.proximityHint = document.getElementById('proximity-hint');
+        this.warp = document.getElementById('warp-overlay');
+        this.minimap = document.getElementById('minimap');
+        this.objects = [...PLANETS, BLACK_HOLE];
+        this.planetEls = [];
+        this.currentPositions = [];
+        this.startT = performance.now();
+        this.running = false;
+        this.raf = null;
+        this.currentFocus = null;
+        this.blackHoleDepth = 0;
+      }
+      init() {
+        document.body.classList.add('app-ready');
+        this.sf = new Starfield(document.getElementById('starfield'));
+        this.vp = new ViewportEngine(this.world, this.viewport);
+        this.vp.onZoomChange = (scale) => {
+          this.zoomReadout.textContent = Math.round(scale * 100) + '%';
+        };
+        this.buildScene();
+        this.buildMinimap();
+        this.bindEvents();
+        this.running = true;
+        const tick = (ts) => {
+          if (!this.running) return;
+          this.updateScene(ts);
+          this.updateMinimap();
+          this.raf = requestAnimationFrame(tick);
+        };
+        this.raf = requestAnimationFrame(tick);
+      }
+      buildScene() {
+        const radii = [...new Set(this.objects.map((obj) => obj.radius))].sort((a, b) => a - b);
+        radii.forEach((radius) => {
+          const ring = document.createElement('div');
+          ring.className = 'orbit-ring';
+          ring.style.width = `${radius * 2}px`;
+          ring.style.height = `${radius * 2 * 0.16}px`;
+          this.world.appendChild(ring);
+        });
+
+        const core = document.createElement('div');
+        core.id = 'sun-wrapper';
+        core.innerHTML = '<div id="sun"></div><div id="sun-aura"></div>';
+        this.world.appendChild(core);
+
+        this.planetEls = this.objects.map((obj) => {
+          const wrap = document.createElement('article');
+          wrap.className = obj.id === BLACK_HOLE.id ? 'planet-wrapper black-hole-wrapper' : 'planet-wrapper';
+          wrap.dataset.id = obj.id;
+          wrap.style.setProperty('--planet-color', obj.color);
+
+          const body = document.createElement('div');
+          body.className = obj.id === BLACK_HOLE.id ? 'planet black-hole' : 'planet';
+          body.style.width = `${obj.size}px`;
+          body.style.height = `${obj.size}px`;
+          if (obj.id !== BLACK_HOLE.id) {
+            body.style.background = obj.gradient;
+            body.innerHTML = '<div class="planet-inner"></div><div class="planet-shine"></div>';
+          } else {
+            body.innerHTML = '<div class="event-ring"></div><div class="event-core"></div><div class="event-lens"></div>';
+          }
+
+          const label = document.createElement('div');
+          label.className = 'object-label';
+          label.innerHTML = `<span class="object-name">${obj.name}</span><span class="object-subtitle">${obj.subtitle}</span>`;
+
+          const shell = document.createElement('div');
+          shell.className = 'content-shell';
+          shell.innerHTML = `
+            <div class="zoom-level zoom-level-2">
+              <div class="level-title">${obj.name}</div>
+              <p>${obj.prompt}</p>
+            </div>
+            <div class="zoom-level zoom-level-3">${obj.preview()}</div>
+            <div class="zoom-level zoom-level-4"></div>
+            <div class="zoom-level zoom-level-5"></div>
+          `;
+
+          wrap.appendChild(body);
+          wrap.appendChild(label);
+          wrap.appendChild(shell);
+          this.world.appendChild(wrap);
+
+          return {
+            data: obj,
+            el: wrap,
+            body,
+            label,
+            shell,
+            surfaceEl: shell.querySelector('.zoom-level-4'),
+            deepEl: shell.querySelector('.zoom-level-5'),
+            surfaceLoaded: false,
+            deepLoaded: false,
+            localDepth: 0,
+            screenX: 0,
+            screenY: 0,
+          };
+        });
+      }
+      buildMinimap() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 240;
+        canvas.style.width = '120px';
+        canvas.style.height = '120px';
+        this.minimap.appendChild(canvas);
+        this.mmCanvas = canvas;
+        this.mmCtx = canvas.getContext('2d');
+      }
+      bindEvents() {
+        let booted = false;
+        const boot = () => {
+          if (booted) return;
+          booted = true;
+          const intro = document.getElementById('intro');
+          intro.classList.add('hidden');
+          setTimeout(() => intro.remove(), 1200);
+        };
+        window.addEventListener('wheel', boot, { once: true, passive: true });
+        window.addEventListener('keydown', boot, { once: true, passive: true });
+        window.addEventListener('pointerdown', boot, { once: true, passive: true });
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'r' || e.key === 'R') this.vp.reset();
+        }, { passive: true });
+      }
+      updateScene(ts) {
+        const t = (ts - this.startT) * 0.001 * 0.42;
+        const positions = [];
+        const centerX = window.innerWidth * 0.5;
+        const centerY = window.innerHeight * 0.5;
+        let best = null;
+        let bestScore = -1;
+        let holeDepth = 0;
+
+        for (const item of this.planetEls) {
+          const p = item.data;
+          const angle = t * p.speed + p.phase;
+          const x = Math.cos(angle) * p.radius;
+          const y = Math.sin(angle) * p.radius * p.tilt;
+          const depth = y / Math.max(1, p.radius * p.tilt);
+          const orbitScale = 0.9 + (depth + 1) * 0.13;
+          item.el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${orbitScale.toFixed(3)})`;
+          item.el.style.zIndex = `${Math.round(2000 + depth * 1200)}`;
+
+          const apparent = p.size * this.vp.getScale() * orbitScale;
+          const sx = centerX + this.vp.x + x * this.vp.getScale();
+          const sy = centerY + this.vp.y + y * this.vp.getScale();
+          item.screenX = sx;
+          item.screenY = sy;
+          const dist = Math.hypot(sx - centerX, sy - centerY);
+          const proximity = this.smoothstep(1, 0, dist / (Math.min(window.innerWidth, window.innerHeight) * 0.52));
+          const localDepth = (apparent / 22) * (0.35 + proximity * 0.65);
+          item.localDepth = localDepth;
+          item.el.style.setProperty('--reveal-2', this.smoothstep(0.55, 1.05, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-3', this.smoothstep(0.95, 1.8, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-4', this.smoothstep(1.9, 3.6, localDepth).toFixed(3));
+          item.el.style.setProperty('--reveal-5', this.smoothstep(4.2, 7.4, localDepth).toFixed(3));
+          item.el.style.setProperty('--shell-scale', (1 + this.smoothstep(1.2, 7.5, localDepth) * 0.18).toFixed(3));
+          item.el.style.setProperty('--planet-glow', `${(0.18 + localDepth * 0.05).toFixed(3)}`);
+
+          if (localDepth > 2.2 && !item.surfaceLoaded) {
+            item.surfaceEl.innerHTML = p.surface();
+            item.surfaceLoaded = true;
+          }
+          if (localDepth > 4.8 && !item.deepLoaded) {
+            item.deepEl.innerHTML = p.deep();
+            item.deepLoaded = true;
+          }
+
+          const score = localDepth * (0.55 + proximity * 0.45);
+          if (score > bestScore) {
+            bestScore = score;
+            best = item;
+          }
+          if (p.id === BLACK_HOLE.id) holeDepth = localDepth;
+          positions.push({ id: p.id, x, y, color: p.color });
         }
-        this._shooters = keep;
+
+        this.currentPositions = positions;
+        this.currentFocus = best;
+        this.blackHoleDepth = holeDepth;
+        this.vp.setZoomBoost(1 + this.smoothstep(1.4, 4.8, holeDepth) * 1.65);
+        this.sf.setWarpTint(this.smoothstep(1.2, 6.2, holeDepth));
+        this.warp.style.opacity = this.smoothstep(1.3, 6.6, holeDepth).toFixed(3);
+        document.body.classList.toggle('singularity-active', holeDepth > 4.8);
+        this.updateReadout(best, holeDepth);
       }
-      this._raf = requestAnimationFrame(tick);
-    };
-    this._raf = requestAnimationFrame(tick);
-  }
-  destroy() { this._running = false; cancelAnimationFrame(this._raf); }
-}
-
-/* ════════════════ VIEWPORT ENGINE ════════════════ */
-class ViewportEngine {
-  constructor(worldEl, viewportEl) {
-    this.world = worldEl; this.viewport = viewportEl;
-    this.x = 0; this.y = 0; this.scale = 0.55;
-    this.targetX = 0; this.targetY = 0; this.targetScale = 0.55;
-    this.MIN_SCALE = 0.18; this.MAX_SCALE = 3.2;
-    this.vx = 0; this.vy = 0; this.FRICTION = 0.88;
-    this.ZOOM_WHEEL_SENSITIVITY = 0.0016;
-    this._dragging = false; this._lastX = 0; this._lastY = 0;
-    this._pinchDist = 0; this._running = false; this._raf = null;
-    this.onZoomChange = null;
-    this._bindEvents(); this._startLoop();
-  }
-  zoomTo(wx, wy, scale) {
-    const vW = this.viewport.offsetWidth; const vH = this.viewport.offsetHeight;
-    this.targetScale = this._clamp(scale);
-    this.targetX = -wx * this.targetScale + vW / 2;
-    this.targetY = -wy * this.targetScale + vH / 2;
-    this.vx = 0; this.vy = 0;
-    if (this.onZoomChange) this.onZoomChange(this.targetScale);
-  }
-  reset() {
-    this.targetX = 0; this.targetY = 0; this.targetScale = 0.55;
-    this.vx = 0; this.vy = 0;
-    if (this.onZoomChange) this.onZoomChange(this.targetScale);
-  }
-  zoomBy(f, cx = this.viewport.offsetWidth * 0.5, cy = this.viewport.offsetHeight * 0.5) {
-    this._zoomAround(cx, cy, f);
-  }
-  getScale()  { return this.scale; }
-  getOffset() { return { x: this.x, y: this.y }; }
-  _startLoop() {
-    this._running = true;
-    const tick = () => {
-      if (!this._running) return;
-      const EASE = 0.10;
-      if (!this._dragging) {
-        this.targetX += this.vx; this.targetY += this.vy;
-        this.vx *= this.FRICTION; this.vy *= this.FRICTION;
+      updateReadout(best, holeDepth) {
+        if (!best || best.localDepth < 0.5) {
+          this.focusReadout.textContent = 'Drift through the inner orbit';
+          this.proximityHint.textContent = 'Scroll to explore. Drag to reframe space.';
+          return;
+        }
+        const label = `${best.data.name} - ${best.data.subtitle}`;
+        this.focusReadout.textContent = label;
+        if (best.data.id === BLACK_HOLE.id && holeDepth > 2) {
+          this.proximityHint.textContent = holeDepth > 5
+            ? 'The archive is open. Keep descending for raw process and prototypes.'
+            : 'Space is bending. Scroll deeper to cross the event horizon.';
+          return;
+        }
+        if (best.localDepth < 1) {
+          this.proximityHint.textContent = 'Object acquired. Keep zooming to resolve the name.';
+        } else if (best.localDepth < 2) {
+          this.proximityHint.textContent = `${best.data.name} is resolving. Keep descending toward orbit.`;
+        } else if (best.localDepth < 4) {
+          this.proximityHint.textContent = `${best.data.name} surface previews are visible. Stay centered and keep zooming.`;
+        } else {
+          this.proximityHint.textContent = `${best.data.name} deep layer active. Zoom out to drift elsewhere.`;
+        }
       }
-      this.x     += (this.targetX - this.x)     * EASE;
-      this.y     += (this.targetY - this.y)     * EASE;
-      this.scale += (this.targetScale - this.scale) * EASE;
-      this.world.style.transform = `translate(${this.x}px,${this.y}px) scale(${this.scale})`;
-      this._raf = requestAnimationFrame(tick);
-    };
-    this._raf = requestAnimationFrame(tick);
-  }
-  _bindEvents() {
-    const vp = this.viewport;
-    this._onMD = e => { if(e.button!==0)return; this._dragging=true; this._lastX=e.clientX; this._lastY=e.clientY; this.vx=0;this.vy=0; vp.classList.add('grabbing'); };
-    this._onMM = e => { if(!this._dragging)return; const dx=e.clientX-this._lastX,dy=e.clientY-this._lastY; this._lastX=e.clientX;this._lastY=e.clientY; this.targetX+=dx;this.targetY+=dy;this.vx=dx;this.vy=dy; };
-    this._onMU = () => { this._dragging=false; vp.classList.remove('grabbing'); };
-    this._onWH = e => {
-      e.preventDefault();
-      const r = vp.getBoundingClientRect();
-      const d = this._wheelDeltaPx(e);
-      const f = Math.exp(-d * this.ZOOM_WHEEL_SENSITIVITY);
-      this._zoomAround(e.clientX - r.left, e.clientY - r.top, f);
-    };
-    this._onTS = e => { if(e.touches.length===1){this._dragging=true;this._lastX=e.touches[0].clientX;this._lastY=e.touches[0].clientY;this.vx=0;this.vy=0;}else if(e.touches.length===2){this._dragging=false;this._pinchDist=this._pDist(e.touches);} };
-    this._onTM = e => { if(e.touches.length===1&&this._dragging){e.preventDefault();const dx=e.touches[0].clientX-this._lastX,dy=e.touches[0].clientY-this._lastY;this._lastX=e.touches[0].clientX;this._lastY=e.touches[0].clientY;this.targetX+=dx;this.targetY+=dy;this.vx=dx;this.vy=dy;}else if(e.touches.length===2){e.preventDefault();const d=this._pDist(e.touches);const r=Math.max(0.92,Math.min(1.08,d/this._pinchDist));this._pinchDist=d;const rect=vp.getBoundingClientRect();const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left,cy=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top;this._zoomAround(cx,cy,r);} };
-    this._onTE = () => { this._dragging=false; };
-    vp.addEventListener('mousedown',  this._onMD, {passive:true});
-    window.addEventListener('mousemove', this._onMM, {passive:true});
-    window.addEventListener('mouseup',   this._onMU, {passive:true});
-    vp.addEventListener('wheel',      this._onWH, {passive:false});
-    vp.addEventListener('touchstart', this._onTS, {passive:true});
-    vp.addEventListener('touchmove',  this._onTM, {passive:false});
-    vp.addEventListener('touchend',   this._onTE, {passive:true});
-  }
-  _zoomAround(cx, cy, f) {
-    const ns = this._clamp(this.targetScale * f);
-    const r  = ns / Math.max(0.0001, this.targetScale);
-    this.targetX = cx - (cx - this.targetX) * r;
-    this.targetY = cy - (cy - this.targetY) * r;
-    this.targetScale = ns;
-    if (this.onZoomChange) this.onZoomChange(ns);
-  }
-  _wheelDeltaPx(e) {
-    if (e.deltaMode === 1) return e.deltaY * 16;
-    if (e.deltaMode === 2) return e.deltaY * this.viewport.clientHeight;
-    return e.deltaY;
-  }
-  _clamp(s)      { return Math.max(this.MIN_SCALE, Math.min(this.MAX_SCALE, s)); }
-  _pDist(t)      { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
-  destroy()      { this._running=false; cancelAnimationFrame(this._raf); }
-}
-
-/* ════════════════ PLANET DATA ════════════════ */
-const PLANETS = [
-  {
-    id:'about',name:'AETHER',subtitle:'About Me',radius:170,size:38,speed:1.0,phase:0.4,tilt:0.14,
-    color:'#7b6fff',gradient:'radial-gradient(circle at 32% 28%, #a99fff 0%, #7b6fff 40%, #3d2fa0 80%, #1a1040 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Hello, Universe</h3>
-        <p style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);line-height:1.75">
-          I'm <strong style="color:var(--text-primary)">Alex Nova</strong> — a full-stack engineer and creative technologist
-          crafting digital experiences at the intersection of performance, design, and storytelling.
-          Currently building the future at <strong style="color:var(--teal)">Nebula Labs</strong>.
-        </p>
-      </div>
-      <div class="panel-section"><h3>At a Glance</h3>
-        <div class="stat-grid">
-          <div class="stat-box"><div class="stat-num">6+</div><div class="stat-lbl">Years Exp</div></div>
-          <div class="stat-box"><div class="stat-num">40+</div><div class="stat-lbl">Projects</div></div>
-          <div class="stat-box"><div class="stat-num">12</div><div class="stat-lbl">OSS Repos</div></div>
-          <div class="stat-box"><div class="stat-num">3</div><div class="stat-lbl">Companies</div></div>
-        </div>
-      </div>
-      <div class="panel-section"><h3>Currently</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.7">
-          🌍 Based in San Francisco<br>💼 Senior Engineer @ Nebula Labs<br>
-          🎯 Focused on WebGPU & Edge computing<br>✍️ Writing about systems design
-        </p>
-      </div>`
-  },
-  {
-    id:'skills',name:'FORGE',subtitle:'Skills & Stack',radius:260,size:44,speed:0.72,phase:1.2,tilt:0.13,
-    color:'#52e3c2',gradient:'radial-gradient(circle at 35% 30%, #8ffce5 0%, #52e3c2 40%, #1a9e85 75%, #0a3d30 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Frontend</h3><div class="skill-grid">
-        ${['React','TypeScript','Next.js','Svelte','Three.js','WebGL','CSS/Animations'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
-      </div></div>
-      <div class="panel-section"><h3>Backend</h3><div class="skill-grid">
-        ${['Node.js','Rust','Go','PostgreSQL','Redis','GraphQL','gRPC'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
-      </div></div>
-      <div class="panel-section"><h3>Infrastructure</h3><div class="skill-grid">
-        ${['AWS','GCP','Docker','Kubernetes','Terraform','Vercel','CI/CD'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
-      </div></div>
-      <div class="panel-section"><h3>Proficiency</h3>
-        ${[['TypeScript / JS',95],['Rust',78],['System Design',88],['UX / Design',82]].map(([n,p])=>`
-          <div style="margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-family:var(--font-mono);font-size:10px">${n}</span>
-              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${p}%</span>
-            </div>
-            <div style="height:3px;background:var(--border);border-radius:2px">
-              <div style="height:100%;width:${p}%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:2px"></div>
-            </div>
-          </div>`).join('')}
-      </div>`
-  },
-  {
-    id:'projects',name:'ATLAS',subtitle:'Featured Work',radius:360,size:50,speed:0.55,phase:2.5,tilt:0.11,
-    color:'#ffd47e',gradient:'radial-gradient(circle at 30% 28%, #fff2b8 0%, #ffd47e 35%, #e8960a 75%, #6b3a00 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Featured Projects</h3>
-        ${[
-          {name:'VoidDB',desc:'Distributed key-value store in Rust with Raft consensus. 2M ops/sec on commodity hardware.',tag:'⚡ Rust · Raft · gRPC'},
-          {name:'Lumina UI',desc:'Open-source component library with GPU-accelerated animations. 4k GitHub stars.',tag:'★ React · WebGL · 4.1k ⭐'},
-          {name:'EdgeStream',desc:'Real-time video transcoding at the edge. 40% cost reduction vs cloud-only.',tag:'🌐 Go · Cloudflare · WASM'},
-          {name:'CosmicCMS',desc:'Headless CMS with live collaboration on CRDTs. Powers 200+ production sites.',tag:'🧩 Node · CRDTs · GraphQL'},
-        ].map(p=>`<div class="project-card"><h4>${p.name}</h4><p>${p.desc}</p><p style="margin-top:6px;color:var(--accent);font-size:10px">${p.tag}</p></div>`).join('')}
-      </div>`
-  },
-  {
-    id:'experience',name:'KRONOS',subtitle:'Work History',radius:460,size:34,speed:0.42,phase:0.9,tilt:0.10,
-    color:'#ff8080',gradient:'radial-gradient(circle at 32% 28%, #ffb8b8 0%, #ff8080 38%, #cc2222 78%, #550000 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Timeline</h3>
-        ${[
-          ['2023 — Present','Senior Staff Engineer','Nebula Labs · San Francisco'],
-          ['2021 — 2023','Principal Engineer','Vertex Systems · Remote'],
-          ['2019 — 2021','Senior Full-Stack Engineer','Quasar IO · New York'],
-          ['2018 — 2019','Software Engineer','Polaris Tech · Boston'],
-        ].map(([y,t,c])=>`
-          <div class="timeline-item">
-            <div class="timeline-year">${y}</div>
-            <div class="timeline-title">${t}</div>
-            <div class="timeline-sub">${c}</div>
-          </div>`).join('')}
-      </div>
-      <div class="panel-section"><h3>Education</h3>
-        <div class="timeline-item">
-          <div class="timeline-year">2014 — 2018</div>
-          <div class="timeline-title">B.S. Computer Science</div>
-          <div class="timeline-sub">MIT · Magna Cum Laude</div>
-        </div>
-      </div>`
-  },
-  {
-    id:'opensource',name:'NEXUS',subtitle:'Open Source',radius:340,size:30,speed:0.65,phase:4.1,tilt:0.16,
-    color:'#a0d4ff',gradient:'radial-gradient(circle at 32% 28%, #e0f2ff 0%, #a0d4ff 38%, #3090e0 78%, #0a3060 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Repositories</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
-          1,200+ commits across 12 repos. Building in public.
-        </p>
-        ${[
-          {name:'lumina-ui',stars:'4.1k',desc:'GPU-accelerated React components'},
-          {name:'voiddb',stars:'2.8k',desc:'Distributed KV store in Rust'},
-          {name:'edgeq',stars:'1.2k',desc:'Edge-first job queue system'},
-          {name:'cssmagic',stars:'980',desc:'Zero-runtime CSS animation DSL'},
-        ].map(r=>`<div class="project-card"><h4 style="font-family:var(--font-mono)">⬡ ${r.name}</h4><p>${r.desc} · ★ ${r.stars}</p></div>`).join('')}
-      </div>`
-  },
-  {
-    id:'writing',name:'LYRA',subtitle:'Blog & Writing',radius:510,size:28,speed:0.35,phase:3.3,tilt:0.09,
-    color:'#e8a0ff',gradient:'radial-gradient(circle at 32% 28%, #f8d8ff 0%, #e8a0ff 38%, #9030c0 78%, #300050 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Recent Articles</h3>
-        ${[
-          {title:'Why Rust Outperforms Go for Systems Work',date:'Mar 2026',read:'8 min'},
-          {title:'WebGPU: The Future of Browser Graphics',date:'Feb 2026',read:'12 min'},
-          {title:'Building a 10M RPS API with Edge Functions',date:'Jan 2026',read:'6 min'},
-          {title:'CRDTs Explained: Conflict-Free Collaboration',date:'Dec 2025',read:'10 min'},
-        ].map(a=>`<div class="project-card"><h4 style="font-size:12px">${a.title}</h4><p style="margin-top:5px">${a.date} · ${a.read} read</p></div>`).join('')}
-      </div>`
-  },
-  {
-    id:'design',name:'PIXEL',subtitle:'Design Work',radius:220,size:26,speed:0.88,phase:5.5,tilt:0.15,
-    color:'#ff9f52',gradient:'radial-gradient(circle at 32% 28%, #ffcc99 0%, #ff9f52 38%, #c04010 78%, #3d0f00 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Design Portfolio</h3>
-        <div class="stat-grid">
-          <div class="stat-box"><div class="stat-num">18</div><div class="stat-lbl">UI Systems</div></div>
-          <div class="stat-box"><div class="stat-num">6</div><div class="stat-lbl">Brand Kits</div></div>
-          <div class="stat-box"><div class="stat-num">99</div><div class="stat-lbl">Figma Score</div></div>
-          <div class="stat-box"><div class="stat-num">3k</div><div class="stat-lbl">Dribbble ♥</div></div>
-        </div>
-      </div>
-      <div class="panel-section"><h3>Tools</h3><div class="skill-grid">
-        ${['Figma','Framer','Spline','Rive','Adobe XD','Principle'].map(s=>`<span class="skill-tag">${s}</span>`).join('')}
-      </div></div>`
-  },
-  {
-    id:'contact',name:'BEACON',subtitle:'Get In Touch',radius:600,size:36,speed:0.28,phase:1.8,tilt:0.08,
-    color:'#60d090',gradient:'radial-gradient(circle at 32% 28%, #a0ffc0 0%, #60d090 38%, #208050 78%, #062818 100%)',
-    content:()=>`
-      <div class="panel-section"><h3>Let's Connect</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
-          Open to interesting projects, collaborations, and conversations.
-        </p>
-        ${[
-          {icon:'📧',label:'alex@cosmicdeveloper.io',bg:'rgba(96,208,144,0.15)',href:'mailto:alex@cosmicdeveloper.io'},
-          {icon:'⬡', label:'github.com/alexnova',bg:'rgba(255,255,255,0.07)',href:'#'},
-          {icon:'in',label:'linkedin.com/in/alexnova',bg:'rgba(100,160,255,0.12)',href:'#'},
-          {icon:'𝕏', label:'@alexnova',bg:'rgba(100,200,255,0.1)',href:'#'},
-        ].map(c=>`
-          <a class="contact-link" href="${c.href}" target="_blank">
-            <div class="contact-icon" style="background:${c.bg}">${c.icon}</div>
-            ${c.label}
-          </a>`).join('')}
-      </div>
-      <div class="panel-section"><h3>Availability</h3>
-        <div class="project-card"><h4 style="color:var(--teal)">✓ Open to Freelance</h4><p>Limited slots for Q2 2026. Min 3-month engagements.</p></div>
-        <div class="project-card"><h4 style="color:var(--gold)">✦ Speaking</h4><p>Available for conferences on systems design & performance.</p></div>
-      </div>`
-  },
-];
-
-/* ════════════════ APP ════════════════ */
-class CosmicApp {
-  constructor() {
-    this.world    = document.getElementById('world');
-    this.viewport = document.getElementById('viewport');
-    this.panel    = document.getElementById('content-panel');
-    this.panelDot = document.getElementById('panel-dot');
-    this.panelTitle = document.getElementById('panel-title');
-    this.panelSub   = document.getElementById('panel-subtitle');
-    this.panelBody  = document.getElementById('panel-body');
-    this.panelScrollContent = document.getElementById('panel-scroll-content');
-    this.panelClose = document.getElementById('panel-close');
-    this.zoomReadout = document.getElementById('zoom-readout');
-    this.minimap  = document.getElementById('minimap');
-    this.quicknav = document.getElementById('quicknav');
-    this.tooltip  = document.getElementById('tooltip');
-    this.warp     = document.getElementById('warp-overlay');
-    this.lenis    = null;
-    this._lenisRaf = null;
-
-    this.activePlanetId = null;
-    this.tourActive     = false;
-    this.tourIndex      = 0;
-    this._tourTimer     = null;
-    this.orbitSpeed     = 0.00008;
-    this.orbitFast      = false;
-
-    /* Orbit state */
-    this._startT = performance.now();
-    this._planetEls = [];
-
-    /* Minimap canvas */
-    this._mmCanvas = null;
-    this._mmCtx    = null;
-
-    this._raf = null;
-    this._running = false;
-  }
-
-  init() {
-    /* Engines */
-    this.sf  = new Starfield(document.getElementById('starfield'));
-    this.vp  = new ViewportEngine(this.world, this.viewport);
-    this.vp.onZoomChange = s => this._onZoomChange(s);
-    this._initLenis();
-
-    /* Build scene */
-    this._buildScene();
-    this._buildMinimap();
-    this._buildQuickNav();
-    this._bindUI();
-
-    /* Main loop */
-    this._running = true;
-    const tick = (ts) => {
-      if (!this._running) return;
-      this._updateOrbits(ts);
-      this._updateMinimap();
-      this._updateZoomReadout();
-      this._raf = requestAnimationFrame(tick);
-    };
-    this._raf = requestAnimationFrame(tick);
-  }
-
-  /* ─── SCENE BUILD ──────────────────────────────── */
-
-  _buildScene() {
-    document.body.classList.add('app-ready');
-
-    /* Orbit rings */
-    const rings = [...new Set(PLANETS.map(p => p.radius))].sort((a,b)=>a-b);
-    rings.forEach(r => {
-      const el = document.createElement('div');
-      el.className = 'orbit-ring';
-      el.style.cssText = `width:${r*2}px;height:${r*2*0.13}px;`;
-      this.world.appendChild(el);
-    });
-
-    /* Sun */
-    const sunWrap = document.createElement('div');
-    sunWrap.id = 'sun-wrapper';
-    sunWrap.innerHTML = `
-      <div id="sun">
-        <div class="planet-shine"></div>
-      </div>
-      <div id="sun-pulse"></div>`;
-    this.world.appendChild(sunWrap);
-    sunWrap.querySelector('#sun').addEventListener('click', () => this.vp.reset());
-
-    /* Planets */
-    this._planetEls = PLANETS.map(p => {
-      const wrap = document.createElement('div');
-      wrap.className = 'planet-wrapper';
-      wrap.dataset.id = p.id;
-      wrap.style.setProperty('--planet-delay', `${(Math.random() * 0.9).toFixed(2)}s`);
-      wrap.style.setProperty('--planet-zoom', (1.35 + Math.random() * 1.9).toFixed(2));
-      wrap.style.setProperty('--planet-drift', `${(-14 + Math.random() * 28).toFixed(2)}px`);
-
-      const planet = document.createElement('div');
-      planet.className = 'planet';
-      planet.style.cssText = `width:${p.size}px;height:${p.size}px;background:${p.gradient};box-shadow:0 0 ${p.size*0.5}px ${p.size*0.2}px ${p.color}44;`;
-      planet.style.setProperty('--planet-color', p.color);
-      planet.style.setProperty('--planet-spin', `${(22 + Math.random() * 22).toFixed(2)}s`);
-
-      const inner = document.createElement('div');
-      inner.className = 'planet-inner';
-      inner.innerHTML = `<div class="planet-shine"></div>`;
-      planet.appendChild(inner);
-
-      let ring = null;
-      if (p.id === 'projects') {
-        ring = document.createElement('div');
-        ring.className = 'planet-ring';
-        ring.style.width = `${(p.size * 2.2).toFixed(1)}px`;
-        ring.style.height = `${(p.size * 0.72).toFixed(1)}px`;
-        ring.style.borderColor = `${p.color}a0`;
+      updateMinimap() {
+        const ctx = this.mmCtx;
+        const W = 120;
+        const H = 120;
+        ctx.setTransform(2, 0, 0, 2, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = 'rgba(4,6,14,0.82)';
+        ctx.fillRect(0, 0, W, H);
+        const worldR = 940;
+        const scale = Math.min(W, H) / (worldR * 2.4);
+        const cx = W / 2;
+        const cy = H / 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 0.5;
+        this.objects.forEach((obj) => {
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, obj.radius * scale, obj.radius * scale * 0.16, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffcc87';
+        ctx.fill();
+        this.currentPositions.forEach((pos) => {
+          ctx.beginPath();
+          ctx.arc(cx + pos.x * scale, cy + pos.y * scale * 0.16, pos.id === BLACK_HOLE.id ? 3.6 : 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = pos.id === BLACK_HOLE.id ? '#85baff' : pos.color;
+          ctx.fill();
+        });
+        const viewScale = this.vp.getScale();
+        const off = this.vp.getOffset();
+        const worldW = window.innerWidth / viewScale;
+        const worldH = window.innerHeight / viewScale;
+        const worldX = (-off.x) / viewScale;
+        const worldY = (-off.y) / viewScale;
+        ctx.strokeStyle = 'rgba(142,197,255,0.9)';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(cx + (worldX - window.innerWidth * 0.5 / viewScale) * scale, cy + (worldY - window.innerHeight * 0.5 / viewScale) * scale * 0.16, worldW * scale, worldH * scale * 0.16);
       }
-
-      const label = document.createElement('div');
-      label.className = 'planet-label';
-      label.textContent = p.name;
-
-      const sub = document.createElement('div');
-      sub.className = 'planet-sublabel';
-      sub.textContent = p.subtitle;
-
-      wrap.appendChild(planet);
-      if (ring) wrap.appendChild(ring);
-      wrap.appendChild(label);
-      wrap.appendChild(sub);
-      this.world.appendChild(wrap);
-
-      /* Click */
-      planet.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this._focusPlanet(p, wrap);
-      });
-
-      /* Hover tooltip */
-      planet.addEventListener('mouseenter', () => {
-        this.tooltip.textContent = `${p.name} — ${p.subtitle}`;
-        this.tooltip.classList.add('show');
-      });
-      planet.addEventListener('mousemove', (e) => {
-        this.tooltip.style.left = (e.clientX + 14) + 'px';
-        this.tooltip.style.top  = (e.clientY - 28) + 'px';
-      });
-      planet.addEventListener('mouseleave', () => this.tooltip.classList.remove('show'));
-
-      return { el: wrap, planet: p, planetEl: planet };
-    });
-  }
-
-  _initLenis() {
-    if (!window.Lenis) return;
-    if (this.lenis) {
-      this.lenis.destroy();
-      cancelAnimationFrame(this._lenisRaf);
+      smoothstep(min, max, value) {
+        const x = Math.max(0, Math.min(1, (value - min) / Math.max(0.0001, max - min)));
+        return x * x * (3 - 2 * x);
+      }
     }
 
-    this.lenis = new window.Lenis({
-      wrapper: this.panelBody,
-      content: this.panelScrollContent,
-      smoothWheel: true,
-      syncTouch: true,
-      touchMultiplier: 1.1,
-      duration: 1.15,
-      easing: (t) => 1 - Math.pow(1 - t, 4),
-    });
+    document.querySelector('#intro .intro-kicker').textContent = INTRO_COPY.kicker;
+    document.querySelector('#intro h1').textContent = INTRO_COPY.title;
+    document.querySelector('#intro p').textContent = INTRO_COPY.description;
+    document.querySelector('#intro .intro-hint').textContent = INTRO_COPY.hint;
 
-    const raf = (time) => {
-      if (!this.lenis) return;
-      this.lenis.raf(time);
-      this._lenisRaf = requestAnimationFrame(raf);
-    };
-    this._lenisRaf = requestAnimationFrame(raf);
-  }
-
-  /* ─── MINIMAP ─────────────────────────────────── */
-
-  _buildMinimap() {
-    const mm = this.minimap;
-    const W = 110; const H = 110;
-    const canvas = document.createElement('canvas');
-    canvas.width  = W * 2; canvas.height = H * 2;
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-    mm.appendChild(canvas);
-    this._mmCanvas = canvas;
-    this._mmCtx    = canvas.getContext('2d');
-    this._mmCtx.scale(2, 2);
-    this._mmW = W; this._mmH = H;
-
-    /* Indicator */
-    this._mmInd = document.createElement('div');
-    this._mmInd.id = 'minimap-viewport-indicator';
-    mm.appendChild(this._mmInd);
-  }
-
-  _updateMinimap() {
-    const ctx = this._mmCtx;
-    if (!ctx) return;
-    const W = this._mmW; const H = this._mmH;
-    const WORLD_R = 680;
-    const scale = Math.min(W, H) / (WORLD_R * 2.4);
-    const cx = W / 2; const cy = H / 2;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(4,5,13,0.5)';
-    ctx.fillRect(0, 0, W, H);
-
-    /* Rings */
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 0.5;
-    PLANETS.forEach(p => {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, p.radius * scale, p.radius * scale * 0.13, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    });
-
-    /* Sun */
-    ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffd47e'; ctx.fill();
-
-    /* Planets at current positions */
-    this._currentPositions && this._currentPositions.forEach(pos => {
-      const p = PLANETS.find(p => p.id === pos.id);
-      if (!p) return;
-      const mx = cx + pos.x * scale;
-      const my = cy + pos.y * scale * 0.13;
-      ctx.beginPath(); ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = p.color; ctx.fill();
-    });
-
-    /* Viewport indicator */
-    const vs = this.vp.getScale();
-    const off = this.vp.getOffset();
-    const vW = window.innerWidth; const vH = window.innerHeight;
-    const worldW = vW / vs; const worldH = vH / vs;
-    const worldX = (-off.x - vW/2) / vs;
-    const worldY = (-off.y - vH/2) / vs;
-    const ix = cx + worldX * scale;
-    const iy = cy + worldY * scale * 0.13;
-    const iw = worldW * scale; const ih = worldH * scale * 0.13;
-    const ind = this._mmInd;
-    ind.style.cssText = `left:${Math.max(0,ix)}px;top:${Math.max(0,iy)}px;width:${Math.min(iw,W-Math.max(0,ix))}px;height:${Math.min(ih,H-Math.max(0,iy))}px;`;
-  }
-
-  /* ─── QUICK NAV ───────────────────────────────── */
-
-  _buildQuickNav() {
-    /* Sun dot */
-    const sunBtn = document.createElement('button');
-    sunBtn.className = 'qn-btn';
-    sunBtn.dataset.label = 'Home';
-    sunBtn.style.background = '#ffd47e';
-    sunBtn.addEventListener('click', () => this.vp.reset());
-    this.quicknav.appendChild(sunBtn);
-
-    PLANETS.forEach(p => {
-      const btn = document.createElement('button');
-      btn.className = 'qn-btn';
-      btn.dataset.id = p.id;
-      btn.dataset.label = p.name;
-      btn.style.background = p.color + '80';
-      btn.addEventListener('click', () => {
-        const wr = this._planetEls.find(pe => pe.planet.id === p.id);
-        if (wr) this._focusPlanet(p, wr.el);
-      });
-      this.quicknav.appendChild(btn);
-    });
-  }
-
-  /* ─── ORBIT UPDATE ────────────────────────────── */
-
-  _updateOrbits(ts) {
-    const t = (ts - this._startT) * 0.001 * this.orbitSpeed * 10000 * 0.00008;
-    const positions = [];
-
-    const showLabels = this.vp.getScale() > 0.45;
-    this.world.classList.toggle('show-labels', showLabels);
-
-    this._planetEls.forEach(({ el, planet: p, planetEl }) => {
-      const angle = t * p.speed + p.phase;
-      const x = Math.cos(angle) * p.radius;
-      const orbitTilt = (p.tilt ?? 0.13);
-      const y = Math.sin(angle) * p.radius * orbitTilt;
-      const depth = y / Math.max(1, p.radius * orbitTilt);
-      const depthScale = 0.92 + ((depth + 1) * 0.12);
-      const glowMul = 0.7 + ((depth + 1) * 0.22);
-      const radiusGlow = (p.size * 0.5 * glowMul).toFixed(2);
-      const blurGlow = (p.size * 0.2 * glowMul).toFixed(2);
-
-      el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${depthScale.toFixed(3)})`;
-      el.style.zIndex = `${Math.round(2000 + depth * 1000)}`;
-      planetEl.style.boxShadow = `0 0 ${radiusGlow}px ${blurGlow}px ${p.color}44`;
-      planetEl.style.setProperty('--planet-atmo', `${(0.32 + (depth + 1) * 0.11).toFixed(3)}`);
-
-      const len = Math.hypot(x, y) || 1;
-      const lightX = (-x / len);
-      const lightY = (-y / len);
-      planetEl.style.setProperty('--sun-x', `${(50 + lightX * 28).toFixed(2)}%`);
-      planetEl.style.setProperty('--sun-y', `${(50 + lightY * 28).toFixed(2)}%`);
-      positions.push({ id: p.id, x, y });
-    });
-
-    this._currentPositions = positions;
-  }
-
-  /* ─── ZOOM/FOCUS ──────────────────────────────── */
-
-  _focusPlanet(p, wrapEl) {
-    if (this.tourActive) this._stopTour();
-
-    /* Use live orbit math position when available (more robust than parsing transform text) */
-    const livePos = this._currentPositions && this._currentPositions.find(pos => pos.id === p.id);
-    const style = wrapEl.style.transform;
-    const match = style.match(/translate\(calc\(-50% \+ ([-\d.]+)px\), calc\(-50% \+ ([-\d.]+)px\)\)/);
-    const wx = livePos ? livePos.x : (match ? parseFloat(match[1]) : 0);
-    const wy = livePos ? livePos.y : (match ? parseFloat(match[2]) : 0);
-
-    /* Planet view: adaptive zoom + panel-aware framing */
-    const targetScale = Math.max(1.55, Math.min(2.35, 90 / Math.max(24, p.size)));
-    const hasSidePanel = window.innerWidth >= 980;
-    const panelOffsetPx = hasSidePanel ? Math.min(180, window.innerWidth * 0.16) : 0;
-    const focusX = wx + (panelOffsetPx / targetScale);
-    const focusY = wy;
-
-    this._warpEffect();
-    this.vp.zoomTo(focusX, focusY, targetScale);
-
-    /* Panel */
-    this.activePlanetId = p.id;
-    this.panelDot.style.cssText   = `background:${p.color};box-shadow:0 0 10px ${p.color}`;
-    this.panelTitle.textContent   = p.name;
-    this.panelSub.textContent     = p.subtitle;
-    this.panelScrollContent.innerHTML = p.content();
-    if (this.lenis) {
-      this.lenis.resize();
-      this.lenis.scrollTo(0, { immediate: true });
-    }
-    this.panel.classList.add('visible');
-
-    /* Quick nav active state */
-    this.quicknav.querySelectorAll('.qn-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.id === p.id);
-    });
-  }
-
-  _hidePanel() {
-    this.panel.classList.remove('visible');
-    this.activePlanetId = null;
-    this.quicknav.querySelectorAll('.qn-btn').forEach(b => b.classList.remove('active'));
-    setTimeout(() => { this.panelScrollContent.innerHTML = ''; }, 450);
-  }
-
-  /* ─── WARP EFFECT ─────────────────────────────── */
-
-  _warpEffect() {
-    this.warp.classList.add('active');
-    setTimeout(() => this.warp.classList.remove('active'), 500);
-  }
-
-  /* ─── AUTO TOUR ───────────────────────────────── */
-
-  _startTour() {
-    this.tourActive = true;
-    document.getElementById('btn-tour').classList.add('active');
-    this.tourIndex = 0;
-    this._nextTourStep();
-  }
-
-  _nextTourStep() {
-    if (!this.tourActive) return;
-    const p = PLANETS[this.tourIndex % PLANETS.length];
-    const wr = this._planetEls.find(pe => pe.planet.id === p.id);
-    if (wr) this._focusPlanet(p, wr.el);
-    this.tourIndex++;
-    this._tourTimer = setTimeout(() => this._nextTourStep(), 4500);
-  }
-
-  _stopTour() {
-    this.tourActive = false;
-    clearTimeout(this._tourTimer);
-    document.getElementById('btn-tour').classList.remove('active');
-  }
-
-  /* ─── ZOOM READOUT ────────────────────────────── */
-
-  _onZoomChange(s) {
-    this.zoomReadout.textContent = Math.round(s * 100) + '%';
-  }
-
-  _updateZoomReadout() {
-    const s = this.vp.getScale();
-    this.zoomReadout.textContent = Math.round(s * 100) + '%';
-  }
-
-  /* ─── UI BINDINGS ─────────────────────────────── */
-
-  _bindUI() {
-    /* Panel close */
-    this.panelClose.addEventListener('click', () => { this._hidePanel(); this.vp.reset(); });
-
-    /* Toolbar */
-    document.getElementById('btn-zoom-in').addEventListener('click',  () => {
-      this.vp.zoomBy(1.22);
-    });
-    document.getElementById('btn-zoom-out').addEventListener('click', () => {
-      this.vp.zoomBy(1 / 1.22);
-    });
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      this._hidePanel(); this.vp.reset(); this._stopTour();
-    });
-    document.getElementById('btn-tour').addEventListener('click', () => {
-      this.tourActive ? this._stopTour() : this._startTour();
-    });
-    document.getElementById('btn-speed').addEventListener('click', (e) => {
-      this.orbitFast = !this.orbitFast;
-      this.orbitSpeed = this.orbitFast ? 0.00032 : 0.00008;
-      e.currentTarget.classList.toggle('active', this.orbitFast);
-    });
-
-    /* Click on viewport background = close panel */
-    this.viewport.addEventListener('click', (e) => {
-      if (e.target === this.viewport || e.target === this.world) {
-        this._hidePanel();
-      }
-    });
-
-    /* Keyboard */
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { this._hidePanel(); this.vp.reset(); this._stopTour(); }
-      if (e.key === 'r' || e.key === 'R') { this._hidePanel(); this.vp.reset(); }
-      if (e.key === 't' || e.key === 'T') { this.tourActive ? this._stopTour() : this._startTour(); }
-    }, { passive: true });
-  }
-}
-
-/* ════════════════ BOOT ════════════════ */
-const app = new CosmicApp();
-let hasBooted = false;
-
-function bootApp() {
-  if (hasBooted) return;
-  hasBooted = true;
-
-  const intro = document.getElementById('intro');
-  document.body.classList.add('launching');
-  intro.classList.add('hidden');
-
-  setTimeout(() => {
-    intro.remove();
-    document.body.classList.remove('launching');
-  }, 1400);
-
-  app.init();
-}
-
-document.getElementById('intro-btn').addEventListener('click', () => {
-  bootApp();
-});
-
-/* Allow skipping intro on any key */
-window.addEventListener('keydown', (e) => {
-  const intro = document.getElementById('intro');
-  if (intro && !intro.classList.contains('hidden')) {
-    bootApp();
-  }
-}, { once: true, passive: true });
-
-</script>
+    const app = new CosmicApp();
+    app.init();
+  </script>
 </body>
 </html>

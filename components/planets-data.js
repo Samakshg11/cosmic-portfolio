@@ -1,352 +1,429 @@
 /**
- * COSMIC PORTFOLIO ENGINE
- * components/planets-data.js — Planet config and lazy content builders
- *
- * Each planet's `content` is a function so it's never evaluated until
- * the user actually zooms in. Keeps initial load cost near zero.
+ * Cosmic Portfolio data model for the infinite-zoom experience.
+ * Content is split into preview, surface, and deep layers so we can
+ * lazy-inject richer markup only when the camera reaches the threshold.
  */
 
 'use strict';
 
+export const INTRO_COPY = {
+  kicker: 'Infinite Zoom Portfolio',
+  title: 'Cosmic Portfolio',
+  description:
+    'Scroll to descend through orbit, atmosphere, and surface. Drag to drift across the system. Every story reveals itself only through depth.',
+  hint: 'Scroll to enter the universe',
+};
+
 export const PLANETS = [
-  /* ── 0: ABOUT ──────────────────────────────────────────────── */
   {
-    id:       'about',
-    name:     'AETHER',
-    subtitle: 'About Me',
-    radius:   170,
-    size:     38,
-    speed:    1.0,
-    phase:    0.4,
-    tilt:     0.14,
-    color:    '#7b6fff',
-    gradient: 'radial-gradient(circle at 32% 28%, #a99fff 0%, #7b6fff 40%, #3d2fa0 80%, #1a1040 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Hello, Universe</h3>
-        <p style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);line-height:1.75">
-          I'm <strong style="color:var(--text-primary)">Alex Nova</strong> — a full-stack engineer
-          and creative technologist crafting digital experiences that live at the intersection
-          of performance, design, and storytelling. Currently building the future at
-          <strong style="color:var(--teal)">Nebula Labs</strong>.
-        </p>
+    id: 'about',
+    name: 'AETHER',
+    subtitle: 'Identity Signal',
+    radius: 180,
+    size: 44,
+    speed: 1.0,
+    phase: 0.45,
+    tilt: 0.17,
+    color: '#8f86ff',
+    gradient: 'radial-gradient(circle at 32% 28%, #d4cfff 0%, #8f86ff 42%, #4534aa 76%, #140f31 100%)',
+    prompt: 'Keep descending to meet the builder behind the system.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card stat-card"><span class="stat-value">6+</span><span class="stat-label">years building</span></article>
+        <article class="zoom-card stat-card"><span class="stat-value">40+</span><span class="stat-label">launches shipped</span></article>
       </div>
-      <div class="panel-section">
-        <h3>At a Glance</h3>
-        <div class="stat-grid">
-          <div class="stat-box"><div class="stat-num">6+</div><div class="stat-lbl">Years Exp</div></div>
-          <div class="stat-box"><div class="stat-num">40+</div><div class="stat-lbl">Projects</div></div>
-          <div class="stat-box"><div class="stat-num">12</div><div class="stat-lbl">OSS Repos</div></div>
-          <div class="stat-box"><div class="stat-num">3</div><div class="stat-lbl">Companies</div></div>
+      <p class="zoom-copy">Full-stack engineer turning systems thinking into cinematic products.</p>
+    `,
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Profile</span>
+        <h3>Hello, universe</h3>
+        <p>I am Alex Nova, a creative engineer focused on performance-heavy interfaces, spatial UX, and resilient backend systems. I like experiences that feel authored, not assembled.</p>
+      </section>
+      <section class="content-block two-col">
+        <div>
+          <span class="content-kicker">Current Orbit</span>
+          <ul class="detail-list">
+            <li>Senior engineer shaping immersive product systems</li>
+            <li>Building with WebGL, realtime rendering, and edge infrastructure</li>
+            <li>Exploring interaction models that feel physical and story-led</li>
+          </ul>
         </div>
-      </div>
-      <div class="panel-section">
-        <h3>Currently</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6">
-          🌍 Based in San Francisco<br>
-          💼 Senior Engineer @ Nebula Labs<br>
-          🎯 Focused on WebGPU & Edge computing<br>
-          ✍️ Writing about systems design
-        </p>
-      </div>
+        <div>
+          <span class="content-kicker">Operating Style</span>
+          <ul class="detail-list muted">
+            <li>Design-forward systems thinking</li>
+            <li>Fast prototyping with production rigor</li>
+            <li>Obsessive about motion, clarity, and performance</li>
+          </ul>
+        </div>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Deep Signal</span>
+        <h3>How I work</h3>
+        <div class="micro-grid">
+          <article class="micro-card">
+            <h4>Thought Process</h4>
+            <p>Begin with feeling first, then reduce everything to interaction primitives: motion, latency, hierarchy, trust.</p>
+          </article>
+          <article class="micro-card">
+            <h4>Stack Bias</h4>
+            <p>TypeScript, graphics APIs, distributed services, and tooling that keeps iteration fast under pressure.</p>
+          </article>
+          <article class="micro-card">
+            <h4>Favorite Problems</h4>
+            <p>Realtime collaboration, data-rich interfaces, product storytelling, and interaction systems with depth.</p>
+          </article>
+        </div>
+      </section>
     `,
   },
-
-  /* ── 1: SKILLS ──────────────────────────────────────────────── */
   {
-    id:       'skills',
-    name:     'FORGE',
-    subtitle: 'Skills & Stack',
-    radius:   260,
-    size:     44,
-    speed:    0.72,
-    phase:    1.2,
-    tilt:     0.13,
-    color:    '#52e3c2',
-    gradient: 'radial-gradient(circle at 35% 30%, #8ffce5 0%, #52e3c2 40%, #1a9e85 75%, #0a3d30 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Frontend</h3>
-        <div class="skill-grid">
-          ${['React', 'TypeScript', 'Next.js', 'Svelte', 'Three.js', 'WebGL', 'CSS/Animations'].map(s =>
-            `<span class="skill-tag">${s}</span>`).join('')}
-        </div>
-      </div>
-      <div class="panel-section">
-        <h3>Backend</h3>
-        <div class="skill-grid">
-          ${['Node.js', 'Rust', 'Go', 'PostgreSQL', 'Redis', 'GraphQL', 'REST', 'gRPC'].map(s =>
-            `<span class="skill-tag">${s}</span>`).join('')}
-        </div>
-      </div>
-      <div class="panel-section">
-        <h3>Infrastructure</h3>
-        <div class="skill-grid">
-          ${['AWS', 'GCP', 'Docker', 'Kubernetes', 'Terraform', 'Vercel', 'CI/CD'].map(s =>
-            `<span class="skill-tag">${s}</span>`).join('')}
-        </div>
-      </div>
-      <div class="panel-section">
-        <h3>Proficiency</h3>
-        ${[
-          { name: 'TypeScript / JS', pct: 95 },
-          { name: 'Rust',            pct: 78 },
-          { name: 'System Design',   pct: 88 },
-          { name: 'UX / Design',     pct: 82 },
-        ].map(b => `
-          <div style="margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-family:var(--font-mono);font-size:10px">${b.name}</span>
-              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${b.pct}%</span>
-            </div>
-            <div style="height:3px;background:var(--border);border-radius:2px">
-              <div style="height:100%;width:${b.pct}%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:2px;transition:width 0.8s"></div>
-            </div>
-          </div>
-        `).join('')}
+    id: 'skills',
+    name: 'FORGE',
+    subtitle: 'Capability Matrix',
+    radius: 285,
+    size: 48,
+    speed: 0.78,
+    phase: 1.3,
+    tilt: 0.14,
+    color: '#63e6cb',
+    gradient: 'radial-gradient(circle at 35% 30%, #b6fff0 0%, #63e6cb 42%, #1b8e78 76%, #072821 100%)',
+    prompt: 'Zoom through the cloud deck to inspect the toolkit.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card"><span class="chip-title">Frontend</span><p>React, TypeScript, WebGL</p></article>
+        <article class="zoom-card"><span class="chip-title">Backend</span><p>Node, Rust, Go</p></article>
       </div>
     `,
-  },
-
-  /* ── 2: PROJECTS ────────────────────────────────────────────── */
-  {
-    id:       'projects',
-    name:     'ATLAS',
-    subtitle: 'Featured Work',
-    radius:   360,
-    size:     50,
-    speed:    0.55,
-    phase:    2.5,
-    tilt:     0.11,
-    color:    '#ffd47e',
-    gradient: 'radial-gradient(circle at 30% 28%, #fff2b8 0%, #ffd47e 35%, #e8960a 75%, #6b3a00 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Featured Projects</h3>
-        ${[
-          {
-            name: 'VoidDB',
-            desc: 'Distributed key-value store in Rust with Raft consensus. 2M ops/sec on commodity hardware.',
-            tag: '⚡ Rust · Raft · gRPC',
-          },
-          {
-            name: 'Lumina UI',
-            desc: 'Open-source component library with GPU-accelerated animations. 4k GitHub stars.',
-            tag: '★ React · WebGL · 4.1k ⭐',
-          },
-          {
-            name: 'EdgeStream',
-            desc: 'Real-time video transcoding at the edge. 40% cost reduction vs cloud-only solutions.',
-            tag: '🌐 Go · Cloudflare · WASM',
-          },
-          {
-            name: 'CosmicCMS',
-            desc: 'Headless CMS with live collaboration built on CRDTs. Powers 200+ production sites.',
-            tag: '🧩 Node · CRDTs · GraphQL',
-          },
-        ].map(p => `
-          <div class="project-card">
-            <h4>${p.name}</h4>
-            <p>${p.desc}</p>
-            <p style="margin-top:6px;color:var(--accent);font-size:10px">${p.tag}</p>
-          </div>
-        `).join('')}
-      </div>
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Core Stack</span>
+        <div class="skill-band">
+          ${['React','TypeScript','Next.js','Svelte','WebGL','Three.js','Node.js','Rust','Go','PostgreSQL','Redis','Terraform'].map((skill) => `<span class="skill-orb">${skill}</span>`).join('')}
+        </div>
+      </section>
+      <section class="content-block two-col">
+        <div>
+          <span class="content-kicker">Strengths</span>
+          <ul class="detail-list">
+            <li>Motion systems and immersive frontends</li>
+            <li>Architecture for product scale and delivery speed</li>
+            <li>Design translation from concept to shipped interface</li>
+          </ul>
+        </div>
+        <div>
+          <span class="content-kicker">Infra</span>
+          <ul class="detail-list muted">
+            <li>AWS, GCP, Vercel, Docker, CI pipelines</li>
+            <li>Observability and performance budgets</li>
+            <li>Pragmatic DevEx tooling</li>
+          </ul>
+        </div>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Precision Layer</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Animation</h4><p>Frame-stable transitions, motion language, scroll choreography, shader-friendly composition.</p></article>
+          <article class="micro-card"><h4>Systems</h4><p>Event-driven services, API design, edge runtimes, queue-based processing, data modeling.</p></article>
+          <article class="micro-card"><h4>Leadership</h4><p>Design reviews, technical direction, prototyping strategy, mentoring through ambiguity.</p></article>
+        </div>
+      </section>
     `,
   },
-
-  /* ── 3: EXPERIENCE ──────────────────────────────────────────── */
   {
-    id:       'experience',
-    name:     'KRONOS',
-    subtitle: 'Work History',
-    radius:   460,
-    size:     34,
-    speed:    0.42,
-    phase:    0.9,
-    tilt:     0.10,
-    color:    '#ff8080',
-    gradient: 'radial-gradient(circle at 32% 28%, #ffb8b8 0%, #ff8080 38%, #cc2222 78%, #550000 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Timeline</h3>
-        <div class="timeline-item">
-          <div class="timeline-year">2023 — Present</div>
-          <div class="timeline-title">Senior Staff Engineer</div>
-          <div class="timeline-sub">Nebula Labs · San Francisco</div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-year">2021 — 2023</div>
-          <div class="timeline-title">Principal Engineer</div>
-          <div class="timeline-sub">Vertex Systems · Remote</div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-year">2019 — 2021</div>
-          <div class="timeline-title">Senior Full-Stack Engineer</div>
-          <div class="timeline-sub">Quasar IO · New York</div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-year">2018 — 2019</div>
-          <div class="timeline-title">Software Engineer</div>
-          <div class="timeline-sub">Polaris Tech · Boston</div>
-        </div>
-      </div>
-      <div class="panel-section">
-        <h3>Education</h3>
-        <div class="timeline-item">
-          <div class="timeline-year">2014 — 2018</div>
-          <div class="timeline-title">B.S. Computer Science</div>
-          <div class="timeline-sub">MIT · Magna Cum Laude</div>
-        </div>
+    id: 'projects',
+    name: 'ATLAS',
+    subtitle: 'Mission Archive',
+    radius: 390,
+    size: 54,
+    speed: 0.56,
+    phase: 2.5,
+    tilt: 0.12,
+    color: '#ffd57f',
+    gradient: 'radial-gradient(circle at 30% 28%, #fff2c7 0%, #ffd57f 40%, #d68014 74%, #482100 100%)',
+    prompt: 'The closer you get, the more launches emerge from the haze.',
+    preview: () => `
+      <div class="zoom-card-grid">
+        <article class="zoom-card"><span class="chip-title">VoidDB</span><p>Rust distributed store</p></article>
+        <article class="zoom-card"><span class="chip-title">Lumina UI</span><p>GPU-first component system</p></article>
+        <article class="zoom-card"><span class="chip-title">EdgeStream</span><p>Realtime edge video pipeline</p></article>
       </div>
     `,
-  },
-
-  /* ── 4: OPEN SOURCE ─────────────────────────────────────────── */
-  {
-    id:       'opensource',
-    name:     'NEXUS',
-    subtitle: 'Open Source',
-    radius:   340,
-    size:     30,
-    speed:    0.65,
-    phase:    4.1,
-    tilt:     0.16,
-    color:    '#a0d4ff',
-    gradient: 'radial-gradient(circle at 32% 28%, #e0f2ff 0%, #a0d4ff 38%, #3090e0 78%, #0a3060 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Open Source Contributions</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
-          Passionate about building in public. 1,200+ commits across 12 repositories.
-        </p>
-        ${[
-          { name: 'lumina-ui', stars: '4.1k', desc: 'GPU-accelerated React components' },
-          { name: 'voiddb',    stars: '2.8k', desc: 'Distributed KV store in Rust' },
-          { name: 'edgeq',     stars: '1.2k', desc: 'Edge-first job queue system' },
-          { name: 'cssmagic',  stars: '980',  desc: 'Zero-runtime CSS animation DSL' },
-        ].map(r => `
-          <div class="project-card">
-            <h4 style="font-family:var(--font-mono)">⬡ ${r.name}</h4>
-            <p>${r.desc} &nbsp;·&nbsp; ★ ${r.stars}</p>
-          </div>
-        `).join('')}
-      </div>
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Featured Missions</span>
+        <div class="stacked-cards">
+          <article class="zoom-card wide-card"><h4>VoidDB</h4><p>Distributed key-value engine in Rust with consensus-aware recovery and sustained high-throughput benchmarks.</p></article>
+          <article class="zoom-card wide-card"><h4>Lumina UI</h4><p>Open-source design system pairing GPU-accelerated visuals with pragmatic product ergonomics.</p></article>
+          <article class="zoom-card wide-card"><h4>EdgeStream</h4><p>Realtime ingest and transcoding platform that cut delivery cost while improving playback latency.</p></article>
+        </div>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Case Study Layer</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Problem Framing</h4><p>Each project began by modeling the bottleneck first: throughput, UX friction, or infra cost.</p></article>
+          <article class="micro-card"><h4>Build Method</h4><p>Prototype fast, instrument early, then narrow the surface area until the product feels inevitable.</p></article>
+          <article class="micro-card"><h4>Outcomes</h4><p>Improved latency, clearer product stories, and systems sturdy enough for real user load.</p></article>
+        </div>
+      </section>
     `,
   },
-
-  /* ── 5: WRITING ─────────────────────────────────────────────── */
   {
-    id:       'writing',
-    name:     'LYRA',
-    subtitle: 'Blog & Writing',
-    radius:   510,
-    size:     28,
-    speed:    0.35,
-    phase:    3.3,
-    tilt:     0.09,
-    color:    '#e8a0ff',
-    gradient: 'radial-gradient(circle at 32% 28%, #f8d8ff 0%, #e8a0ff 38%, #9030c0 78%, #300050 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Recent Articles</h3>
-        ${[
-          { title: 'Why Rust Outperforms Go for Systems Work',      date: 'Mar 2026', read: '8 min' },
-          { title: 'WebGPU: The Future of Browser Graphics',        date: 'Feb 2026', read: '12 min' },
-          { title: 'Building a 10M RPS API with Edge Functions',    date: 'Jan 2026', read: '6 min' },
-          { title: 'CRDTs Explained: Conflict-Free Collaboration',  date: 'Dec 2025', read: '10 min' },
-        ].map(a => `
-          <div class="project-card" style="cursor:pointer">
-            <h4 style="font-size:12px">${a.title}</h4>
-            <p style="margin-top:5px">${a.date} &nbsp;·&nbsp; ${a.read} read</p>
-          </div>
-        `).join('')}
+    id: 'experience',
+    name: 'KRONOS',
+    subtitle: 'Timeline Orbit',
+    radius: 500,
+    size: 40,
+    speed: 0.42,
+    phase: 0.92,
+    tilt: 0.1,
+    color: '#ff8d8d',
+    gradient: 'radial-gradient(circle at 32% 28%, #ffd0d0 0%, #ff8d8d 42%, #b62727 76%, #330808 100%)',
+    prompt: 'Descend to read the trajectory line by line.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card stat-card"><span class="stat-value">3</span><span class="stat-label">lead roles</span></article>
+        <article class="zoom-card stat-card"><span class="stat-value">8</span><span class="stat-label">years shipped</span></article>
       </div>
     `,
-  },
-
-  /* ── 6: DESIGN ──────────────────────────────────────────────── */
-  {
-    id:       'design',
-    name:     'PIXEL',
-    subtitle: 'Design Work',
-    radius:   220,
-    size:     26,
-    speed:    0.88,
-    phase:    5.5,
-    tilt:     0.15,
-    color:    '#ff9f52',
-    gradient: 'radial-gradient(circle at 32% 28%, #ffcc99 0%, #ff9f52 38%, #c04010 78%, #3d0f00 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Design Portfolio</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
-          Selected UI/UX and visual design projects from 2023–2026.
-        </p>
-        <div class="stat-grid">
-          <div class="stat-box"><div class="stat-num">18</div><div class="stat-lbl">UI Systems</div></div>
-          <div class="stat-box"><div class="stat-num">6</div><div class="stat-lbl">Brand Kits</div></div>
-          <div class="stat-box"><div class="stat-num">99</div><div class="stat-lbl">Figma Score</div></div>
-          <div class="stat-box"><div class="stat-num">3k</div><div class="stat-lbl">Dribbble ♥</div></div>
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Timeline</span>
+        <div class="timeline-stream">
+          <article class="timeline-node"><span>2023-Present</span><h4>Senior Staff Engineer</h4><p>Nebula Labs</p></article>
+          <article class="timeline-node"><span>2021-2023</span><h4>Principal Engineer</h4><p>Vertex Systems</p></article>
+          <article class="timeline-node"><span>2019-2021</span><h4>Senior Full-Stack Engineer</h4><p>Quasar IO</p></article>
+          <article class="timeline-node"><span>2018-2019</span><h4>Software Engineer</h4><p>Polaris Tech</p></article>
         </div>
-      </div>
-      <div class="panel-section">
-        <h3>Tools</h3>
-        <div class="skill-grid">
-          ${['Figma', 'Framer', 'Spline', 'Rive', 'Adobe XD', 'Principle'].map(s =>
-            `<span class="skill-tag">${s}</span>`).join('')}
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Leadership Layer</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Staffing</h4><p>Cross-team execution, system ownership, and architectural steering for product-critical work.</p></article>
+          <article class="micro-card"><h4>Delivery</h4><p>Protected build velocity by turning vague asks into scoped, shippable systems.</p></article>
+          <article class="micro-card"><h4>Mentorship</h4><p>Coached engineers through motion work, frontend architecture, and system design tradeoffs.</p></article>
         </div>
-      </div>
+      </section>
     `,
   },
-
-  /* ── 7: CONTACT ─────────────────────────────────────────────── */
   {
-    id:       'contact',
-    name:     'BEACON',
-    subtitle: 'Get In Touch',
-    radius:   600,
-    size:     36,
-    speed:    0.28,
-    phase:    1.8,
-    tilt:     0.08,
-    color:    '#60d090',
-    gradient: 'radial-gradient(circle at 32% 28%, #a0ffc0 0%, #60d090 38%, #208050 78%, #062818 100%)',
-    content: () => `
-      <div class="panel-section">
-        <h3>Let's Connect</h3>
-        <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:14px">
-          Open to interesting projects, collaborations, and conversations.
-          Response time: usually under 24 hours.
-        </p>
-        <a class="contact-link" href="mailto:alex@cosmicdeveloper.io">
-          <div class="contact-icon" style="background:rgba(96,208,144,0.15)">📧</div>
-          alex@cosmicdeveloper.io
-        </a>
-        <a class="contact-link" href="https://github.com/alexnova" target="_blank">
-          <div class="contact-icon" style="background:rgba(255,255,255,0.07)">⬡</div>
-          github.com/alexnova
-        </a>
-        <a class="contact-link" href="https://linkedin.com/in/alexnova" target="_blank">
-          <div class="contact-icon" style="background:rgba(100,160,255,0.12)">in</div>
-          linkedin.com/in/alexnova
-        </a>
-        <a class="contact-link" href="https://twitter.com/alexnova" target="_blank">
-          <div class="contact-icon" style="background:rgba(100,200,255,0.1)">𝕏</div>
-          @alexnova
-        </a>
+    id: 'opensource',
+    name: 'NEXUS',
+    subtitle: 'Open Source Relay',
+    radius: 350,
+    size: 32,
+    speed: 0.64,
+    phase: 4.2,
+    tilt: 0.16,
+    color: '#9cd8ff',
+    gradient: 'radial-gradient(circle at 32% 28%, #edf8ff 0%, #9cd8ff 42%, #2d8bd8 74%, #0a2a4f 100%)',
+    prompt: 'Public work resolves into view as you cross the relay field.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card stat-card"><span class="stat-value">12</span><span class="stat-label">public repos</span></article>
+        <article class="zoom-card stat-card"><span class="stat-value">1.2k+</span><span class="stat-label">commits</span></article>
       </div>
-      <div class="panel-section">
-        <h3>Availability</h3>
-        <div class="project-card">
-          <h4 style="color:var(--teal)">✓ Open to Freelance</h4>
-          <p>Limited slots available for Q2 2026. Min 3-month engagements.</p>
+    `,
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Repositories</span>
+        <div class="stacked-cards">
+          <article class="zoom-card wide-card"><h4>lumina-ui</h4><p>GPU-accelerated components focused on expressive product interfaces.</p></article>
+          <article class="zoom-card wide-card"><h4>voiddb</h4><p>Distributed KV store experiments around reliability, throughput, and consensus.</p></article>
+          <article class="zoom-card wide-card"><h4>edgeq</h4><p>Queue system tuned for edge-first compute and simplified deployment.</p></article>
         </div>
-        <div class="project-card">
-          <h4 style="color:var(--gold)">✦ Speaking</h4>
-          <p>Available for conferences and podcasts on systems design & performance.</p>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Why Open Source</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Testing Ground</h4><p>Where product ideas get pressure-tested in public.</p></article>
+          <article class="micro-card"><h4>Teaching Tool</h4><p>Readable code and thoughtful demos help others move faster.</p></article>
+          <article class="micro-card"><h4>Signal</h4><p>Shows how I think when no one is simplifying the problem for me.</p></article>
         </div>
+      </section>
+    `,
+  },
+  {
+    id: 'writing',
+    name: 'LYRA',
+    subtitle: 'Signal Essays',
+    radius: 560,
+    size: 30,
+    speed: 0.35,
+    phase: 3.32,
+    tilt: 0.09,
+    color: '#e6a5ff',
+    gradient: 'radial-gradient(circle at 32% 28%, #f8dfff 0%, #e6a5ff 42%, #8a2bb4 74%, #2b0534 100%)',
+    prompt: 'Text fragments sharpen into essays as you close in.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card"><span class="chip-title">Systems</span><p>performance, architecture, edge</p></article>
+        <article class="zoom-card"><span class="chip-title">Graphics</span><p>WebGPU, motion, rendering</p></article>
       </div>
+    `,
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Recent Writing</span>
+        <div class="stacked-cards">
+          <article class="zoom-card wide-card"><h4>Why Rust Outperforms Go for Systems Work</h4><p>Tradeoffs between ergonomics, memory ownership, and confidence under load.</p></article>
+          <article class="zoom-card wide-card"><h4>WebGPU and the Future of Browser Graphics</h4><p>Where richer product interactions are headed and what becomes feasible next.</p></article>
+          <article class="zoom-card wide-card"><h4>Building a 10M RPS API with Edge Functions</h4><p>Operational lessons from chasing latency across distributed boundaries.</p></article>
+        </div>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Writing Lens</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Audience</h4><p>Engineers who want practical depth, not hand-wavy inspiration.</p></article>
+          <article class="micro-card"><h4>Style</h4><p>Dense, example-driven writing with strong opinions and operational detail.</p></article>
+          <article class="micro-card"><h4>Purpose</h4><p>Clarify hard ideas, document experiments, and surface patterns worth reusing.</p></article>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: 'design',
+    name: 'PIXEL',
+    subtitle: 'Visual Systems',
+    radius: 230,
+    size: 28,
+    speed: 0.88,
+    phase: 5.45,
+    tilt: 0.15,
+    color: '#ffab67',
+    gradient: 'radial-gradient(circle at 32% 28%, #ffd8b8 0%, #ffab67 42%, #bc4f11 74%, #341103 100%)',
+    prompt: 'Surface patterns emerge first, then the design logic beneath them.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card stat-card"><span class="stat-value">18</span><span class="stat-label">systems designed</span></article>
+        <article class="zoom-card stat-card"><span class="stat-value">6</span><span class="stat-label">brand kits</span></article>
+      </div>
+    `,
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Design Work</span>
+        <div class="skill-band">
+          ${['Interface Systems','Brand Direction','Motion Language','Figma','Framer','Spline','Rive'].map((skill) => `<span class="skill-orb">${skill}</span>`).join('')}
+        </div>
+      </section>
+      <section class="content-block">
+        <p>I design with depth, restraint, and rhythm. Interfaces should feel authored enough to be memorable, but simple enough to disappear once the user is in flow.</p>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Design Principles</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Hierarchy</h4><p>Clarity first, ornament second.</p></article>
+          <article class="micro-card"><h4>Motion</h4><p>Animation should explain structure, not decorate emptiness.</p></article>
+          <article class="micro-card"><h4>Tone</h4><p>Every screen needs a point of view.</p></article>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: 'contact',
+    name: 'BEACON',
+    subtitle: 'Transmission Node',
+    radius: 650,
+    size: 38,
+    speed: 0.28,
+    phase: 1.82,
+    tilt: 0.08,
+    color: '#71d39d',
+    gradient: 'radial-gradient(circle at 32% 28%, #cffff0 0%, #71d39d 42%, #1e7e52 74%, #07281a 100%)',
+    prompt: 'Lock onto the beacon to reveal ways to connect.',
+    preview: () => `
+      <div class="zoom-card-grid compact-grid">
+        <article class="zoom-card"><span class="chip-title">Email</span><p>alex@cosmicdeveloper.io</p></article>
+        <article class="zoom-card"><span class="chip-title">Status</span><p>open to strong fits</p></article>
+      </div>
+    `,
+    surface: () => `
+      <section class="content-block">
+        <span class="content-kicker">Open Channels</span>
+        <div class="stacked-cards">
+          <article class="zoom-card wide-card"><h4>Email</h4><p>alex@cosmicdeveloper.io</p></article>
+          <article class="zoom-card wide-card"><h4>GitHub</h4><p>github.com/alexnova</p></article>
+          <article class="zoom-card wide-card"><h4>LinkedIn</h4><p>linkedin.com/in/alexnova</p></article>
+        </div>
+      </section>
+    `,
+    deep: () => `
+      <section class="content-block">
+        <span class="content-kicker">Availability</span>
+        <div class="micro-grid">
+          <article class="micro-card"><h4>Projects</h4><p>Selective collaborations with teams that care deeply about product quality.</p></article>
+          <article class="micro-card"><h4>Speaking</h4><p>Systems design, frontend motion, and performance storytelling.</p></article>
+          <article class="micro-card"><h4>Response Window</h4><p>Usually within 24 hours for serious inquiries.</p></article>
+        </div>
+      </section>
     `,
   },
 ];
+
+export const BLACK_HOLE = {
+  id: 'singularity',
+  name: 'EVENT HORIZON',
+  subtitle: 'Singularity Archive',
+  radius: 880,
+  size: 92,
+  speed: 0.12,
+  phase: 2.2,
+  tilt: 0.05,
+  color: '#8ec5ff',
+  prompt: 'The closer you drift, the faster space begins to fold.',
+  preview: () => `
+    <div class="zoom-card-grid compact-grid">
+      <article class="zoom-card"><span class="chip-title">Transition</span><p>space bends under depth</p></article>
+      <article class="zoom-card"><span class="chip-title">Archive</span><p>process, experiments, raw notes</p></article>
+    </div>
+  `,
+  surface: () => `
+    <section class="content-block">
+      <span class="content-kicker">Archive Sector</span>
+      <h3>The universe folds inward here</h3>
+      <p>This is the meta-layer: experiments, prototypes, and unfinished directions that shaped the shipped work around the rest of the system.</p>
+    </section>
+    <section class="content-block two-col">
+      <div>
+        <span class="content-kicker">Contains</span>
+        <ul class="detail-list">
+          <li>interface prototypes</li>
+          <li>motion studies</li>
+          <li>system diagrams</li>
+        </ul>
+      </div>
+      <div>
+        <span class="content-kicker">Effect</span>
+        <ul class="detail-list muted">
+          <li>accelerated zoom</li>
+          <li>distortion field</li>
+          <li>scene tint shift</li>
+        </ul>
+      </div>
+    </section>
+  `,
+  deep: () => `
+    <section class="content-block">
+      <span class="content-kicker">Micro Archive</span>
+      <div class="micro-grid">
+        <article class="micro-card"><h4>Prototype Vault</h4><p>Discarded UI directions that still taught the final product what to become.</p></article>
+        <article class="micro-card"><h4>Motion Lab</h4><p>Tests around inertia, camera focus, and nested reveal systems.</p></article>
+        <article class="micro-card"><h4>Operating Thesis</h4><p>People remember interfaces that feel spatial, coherent, and inevitable.</p></article>
+      </div>
+    </section>
+  `,
+};
