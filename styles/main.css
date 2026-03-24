@@ -697,41 +697,47 @@ body.app-ready .planet-wrapper {
   left: 50%;
   top: 50%;
   box-shadow: 0 0 34px rgba(255,255,255,0.18);
+  transform: translate(var(--intro-x, 0px), var(--intro-y, 0px)) scale(0.7);
   animation: introPlanetZoom 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 .intro-planet-1 {
   width: 24px;
   height: 24px;
   background: radial-gradient(circle at 30% 30%, #c8b8ff 0%, #735eff 58%, #2d205d 100%);
-  transform: translate(160px, -110px);
+  --intro-x: 160px;
+  --intro-y: -110px;
   animation-delay: 0s;
 }
 .intro-planet-2 {
   width: 34px;
   height: 34px;
   background: radial-gradient(circle at 35% 35%, #ffeab9 0%, #ffb562 60%, #6d3300 100%);
-  transform: translate(-220px, 110px);
+  --intro-x: -220px;
+  --intro-y: 110px;
   animation-delay: 0.8s;
 }
 .intro-planet-3 {
   width: 18px;
   height: 18px;
   background: radial-gradient(circle at 32% 28%, #dbfff3 0%, #52e3c2 62%, #0c4d40 100%);
-  transform: translate(250px, 120px);
+  --intro-x: 250px;
+  --intro-y: 120px;
   animation-delay: 1.3s;
 }
 .intro-planet-4 {
   width: 28px;
   height: 28px;
   background: radial-gradient(circle at 35% 30%, #ffd7d7 0%, #ff8585 58%, #6b1515 100%);
-  transform: translate(-120px, -185px);
+  --intro-x: -120px;
+  --intro-y: -185px;
   animation-delay: 1.8s;
 }
 .intro-planet-5 {
   width: 14px;
   height: 14px;
   background: radial-gradient(circle at 35% 30%, #eaf6ff 0%, #89ccff 58%, #163d67 100%);
-  transform: translate(320px, -24px);
+  --intro-x: 320px;
+  --intro-y: -24px;
   animation-delay: 2.4s;
 }
 #intro h1 {
@@ -809,12 +815,12 @@ body.launching #intro .intro-vignette {
   0%, 100% {
     opacity: 0.45;
     filter: blur(0);
-    scale: 0.7;
+    transform: translate(var(--intro-x, 0px), var(--intro-y, 0px)) scale(0.7);
   }
   60% {
     opacity: 1;
     filter: blur(0);
-    scale: 1.6;
+    transform: translate(var(--intro-x, 0px), var(--intro-y, 0px)) scale(1.6);
   }
 }
 @keyframes launchZoom {
