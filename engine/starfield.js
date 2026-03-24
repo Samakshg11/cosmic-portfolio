@@ -42,14 +42,14 @@ export class Starfield {
   }
 
   build() {
-    const nearCount = window.innerWidth < 760 ? 40 : 70;
-    const midCount = window.innerWidth < 760 ? 90 : 160;
-    const farCount = window.innerWidth < 760 ? 180 : 260;
+    const nearCount = window.innerWidth < 760 ? 24 : 42;
+    const midCount = window.innerWidth < 760 ? 56 : 92;
+    const farCount = window.innerWidth < 760 ? 120 : 170;
 
     this.layers = [
-      this.makeLayer(nearCount, 0.018, 1.5, 0.55),
-      this.makeLayer(midCount, 0.01, 1.05, 0.34),
-      this.makeLayer(farCount, 0.004, 0.75, 0.2),
+      this.makeLayer(nearCount, 0.012, 1.3, 0.42),
+      this.makeLayer(midCount, 0.007, 0.95, 0.28),
+      this.makeLayer(farCount, 0.003, 0.65, 0.16),
     ];
   }
 

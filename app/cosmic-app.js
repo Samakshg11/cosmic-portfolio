@@ -18,6 +18,8 @@ export class CosmicApp {
     this.currentFocus = null;
     this.currentBlackHoleDepth = 0;
     this.initializedView = false;
+    this.activeVideoId = null;
+    this.minimapFrame = 0;
   }
 
   init() {
@@ -33,7 +35,10 @@ export class CosmicApp {
 
     const loop = (ts) => {
       this.updateScene(ts);
-      this.updateMinimap();
+      this.minimapFrame += 1;
+      if (this.minimapFrame % 2 === 0) {
+        this.updateMinimap();
+      }
       requestAnimationFrame(loop);
     };
 
@@ -110,6 +115,9 @@ export class CosmicApp {
         el: wrap,
         planet,
         shell,
+        baseX: Math.cos(obj.phase) * obj.radius,
+        baseY: Math.sin(obj.phase) * obj.radius * obj.tilt,
+        driftSeed: obj.phase * 10.73 + obj.radius * 0.0027,
         surfaceEl: shell.querySelector('.zoom-layer-4'),
         deepEl: shell.querySelector('.zoom-layer-5'),
         surfaceLoaded: false,
@@ -119,6 +127,7 @@ export class CosmicApp {
         videoStage: null,
         videoEl: null,
         localDepth: 0,
+        proximity: 0,
         screenX: 0,
         screenY: 0,
       };
@@ -169,14 +178,20 @@ export class CosmicApp {
   updateVideo(item, shouldPlay, shouldUnload) {
     if (!item.data.video) return;
     if (shouldPlay) {
+      if (this.activeVideoId && this.activeVideoId !== item.data.id) {
+        const activeItem = this.items.find((entry) => entry.data.id === this.activeVideoId);
+        if (activeItem) this.unloadVideo(activeItem);
+      }
       this.ensureVideo(item);
       if (!item.videoPlaying) {
         item.videoEl.play().catch(() => {});
         item.videoPlaying = true;
       }
       item.el.classList.add('video-active');
+      this.activeVideoId = item.data.id;
     } else if (shouldUnload) {
       this.unloadVideo(item);
+      if (this.activeVideoId === item.data.id) this.activeVideoId = null;
     } else if (item.videoLoaded && item.videoPlaying) {
       item.videoEl.pause();
       item.videoPlaying = false;
@@ -197,7 +212,7 @@ export class CosmicApp {
   }
 
   updateScene(ts) {
-    const t = (ts - this.startTime) * 0.00014;
+    const t = (ts - this.startTime) * 0.001;
     const centerX = window.innerWidth * 0.5;
     const centerY = window.innerHeight * 0.5;
     let focus = null;
@@ -207,15 +222,15 @@ export class CosmicApp {
 
     for (const item of this.items) {
       const obj = item.data;
-      const angle = t * obj.speed * 60 + obj.phase;
-      const x = Math.cos(angle) * obj.radius;
-      const y = Math.sin(angle) * obj.radius * obj.tilt;
+      const driftX = Math.sin(t * (0.08 + obj.speed * 0.02) + item.driftSeed) * 8;
+      const driftY = Math.cos(t * (0.06 + obj.speed * 0.018) + item.driftSeed * 0.8) * 5;
+      const x = item.baseX + driftX;
+      const y = item.baseY + driftY;
       const depth = y / Math.max(1, obj.radius * obj.tilt);
       const orbitScale = 0.84 + (depth + 1) * 0.19;
-      const blur = Math.max(0, (1 - (depth + 1) * 0.5) * 0.9);
       item.el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${orbitScale.toFixed(3)})`;
       item.el.style.zIndex = `${Math.round(2000 + depth * 1200)}`;
-      item.el.style.filter = `blur(${blur.toFixed(2)}px)`;
+      item.el.style.opacity = `${(0.78 + (depth + 1) * 0.11).toFixed(3)}`;
 
       const apparent = obj.size * this.camera.getScale() * orbitScale;
       const screenX = centerX + this.camera.x + x * this.camera.getScale();
@@ -226,6 +241,7 @@ export class CosmicApp {
       const proximity = this.smoothstep(1, 0, dist / (Math.min(window.innerWidth, window.innerHeight) * 0.7));
       const localDepth = (apparent / 50) * (0.45 + proximity * 0.55);
       item.localDepth = localDepth;
+      item.proximity = proximity;
 
       item.el.style.setProperty('--reveal-2', this.smoothstep(0.75, 1.25, localDepth).toFixed(3));
       item.el.style.setProperty('--reveal-3', this.smoothstep(1.2, 2.0, localDepth).toFixed(3));
@@ -244,11 +260,7 @@ export class CosmicApp {
         item.deepLoaded = true;
       }
 
-      const shouldPlayVideo = localDepth > 2.8 && proximity > 0.42;
-      const shouldUnloadVideo = localDepth < 1.8 || proximity < 0.18;
-      this.updateVideo(item, shouldPlayVideo, shouldUnloadVideo);
-
-      const score = localDepth * (0.4 + proximity * 0.6);
+      const score = localDepth * (0.35 + proximity * 0.65);
       if (score > focusScore) {
         focusScore = score;
         focus = item;
@@ -264,9 +276,14 @@ export class CosmicApp {
 
     this.currentFocus = focus;
     this.currentBlackHoleDepth = blackHoleDepth;
-    this.camera.setZoomBoost(1 + this.smoothstep(1.2, 4.8, blackHoleDepth) * 1.4);
-    this.warp.style.opacity = this.smoothstep(1.4, 6.0, blackHoleDepth).toFixed(3);
-    this.starfield.setWarp(this.smoothstep(1.6, 6.2, blackHoleDepth));
+    for (const item of this.items) {
+      const shouldPlayVideo = focus === item && item.localDepth > 4.2 && item.proximity > 0.68;
+      const shouldUnloadVideo = focus !== item || item.localDepth < 3.4 || item.proximity < 0.52;
+      this.updateVideo(item, shouldPlayVideo, shouldUnloadVideo);
+    }
+    this.camera.setZoomBoost(1 + this.smoothstep(2.6, 5.6, blackHoleDepth) * 0.45);
+    this.warp.style.opacity = this.smoothstep(2.8, 6.2, blackHoleDepth).toFixed(3);
+    this.starfield.setWarp(this.smoothstep(3.0, 6.4, blackHoleDepth));
     this.starfield.setParallax(this.camera.x, this.camera.y);
     this.updateReadout(focus, blackHoleDepth);
   }

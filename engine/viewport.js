@@ -17,8 +17,8 @@ export class ViewportEngine {
     this.lastX = 0;
     this.lastY = 0;
     this.pinchDist = 0;
-    this.friction = 0.92;
-    this.wheelSensitivity = 0.0011;
+    this.friction = 0.78;
+    this.wheelSensitivity = 0.0007;
     this.floatX = 0;
     this.floatY = 0;
     this.raf = null;
@@ -54,6 +54,8 @@ export class ViewportEngine {
 
     this.onMouseUp = () => {
       this.dragging = false;
+      if (Math.abs(this.vx) < 1.2) this.vx = 0;
+      if (Math.abs(this.vy) < 1.2) this.vy = 0;
       vp.classList.remove('grabbing');
     };
 
@@ -105,6 +107,8 @@ export class ViewportEngine {
 
     this.onTouchEnd = () => {
       this.dragging = false;
+      this.vx = 0;
+      this.vy = 0;
       vp.classList.remove('grabbing');
     };
 
@@ -131,6 +135,7 @@ export class ViewportEngine {
   }
 
   zoomToward(cx, cy, factor) {
+    factor = Math.max(0.88, Math.min(1.12, factor));
     const nextScale = this.clamp(this.targetScale * factor);
     const ratio = nextScale / Math.max(0.0001, this.targetScale);
     this.targetX = cx - (cx - this.targetX) * ratio;
@@ -149,15 +154,16 @@ export class ViewportEngine {
 
   loop() {
     const tick = (ts) => {
-      const t = ts * 0.001;
       if (!this.dragging) {
         this.targetX += this.vx;
         this.targetY += this.vy;
         this.vx *= this.friction;
         this.vy *= this.friction;
+        if (Math.abs(this.vx) < 0.02) this.vx = 0;
+        if (Math.abs(this.vy) < 0.02) this.vy = 0;
       }
-      this.floatX = Math.cos(t * 0.09) * 3.4;
-      this.floatY = Math.sin(t * 0.07) * 2.2;
+      this.floatX = 0;
+      this.floatY = 0;
       this.x += (this.targetX + this.floatX - this.x) * 0.08;
       this.y += (this.targetY + this.floatY - this.y) * 0.08;
       this.scale += (this.targetScale - this.scale) * 0.1;
