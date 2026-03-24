@@ -324,7 +324,6 @@
         this.currentFocus = null;
         this.currentBlackHoleDepth = 0;
         this.initializedView = false;
-        this.activeVideoIds = new Set();
       }
       init() {
         this.starfield = new Starfield(document.getElementById('starfield'));
@@ -417,6 +416,7 @@
             deepLoaded: false,
             videoLoaded: false,
             videoPlaying: false,
+            videoStage: null,
             videoEl: null,
             localDepth: 0,
             screenX: 0,
@@ -445,11 +445,24 @@
           </div>
         `;
         item.surfaceEl.prepend(stage);
+        item.videoStage = stage;
         item.videoEl = stage.querySelector('video');
         item.videoEl.src = item.data.video.src;
         item.videoLoaded = true;
       }
-      updateVideo(item, shouldPlay) {
+      unloadVideo(item) {
+        if (!item.videoLoaded) return;
+        if (item.videoPlaying) item.videoEl.pause();
+        item.videoEl.removeAttribute('src');
+        item.videoEl.load();
+        item.videoStage?.remove();
+        item.videoLoaded = false;
+        item.videoPlaying = false;
+        item.videoEl = null;
+        item.videoStage = null;
+        item.el.classList.remove('video-active');
+      }
+      updateVideo(item, shouldPlay, shouldUnload) {
         if (!item.data.video) return;
         if (shouldPlay) {
           this.ensureVideo(item);
@@ -458,6 +471,8 @@
             item.videoPlaying = true;
           }
           item.el.classList.add('video-active');
+        } else if (shouldUnload) {
+          this.unloadVideo(item);
         } else if (item.videoLoaded && item.videoPlaying) {
           item.videoEl.pause();
           item.videoPlaying = false;
@@ -524,7 +539,8 @@
           }
 
           const shouldPlayVideo = localDepth > 2.8 && proximity > 0.42;
-          this.updateVideo(item, shouldPlayVideo);
+          const shouldUnloadVideo = localDepth < 1.8 || proximity < 0.18;
+          this.updateVideo(item, shouldPlayVideo, shouldUnloadVideo);
 
           const score = localDepth * (0.4 + proximity * 0.6);
           if (score > focusScore) {
